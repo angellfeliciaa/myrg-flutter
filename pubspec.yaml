@@ -1,0 +1,34 @@
+name: myrg
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  dio: ^5.11.1
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^3.3.2
+  flutter_secure_storage: ^10.3.0
+  go_router: ^17.5.0
+  google_fonts: ^8.2.1
+  intl: ^0.20.2
+  qr_flutter: ^4.1.0
+  webview_flutter: ^4.13.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/logos/
+    - assets/illustrations/
