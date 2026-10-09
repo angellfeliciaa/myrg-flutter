@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../network/backend_config.dart';
 
 import '../../features/activity/data/activity_repository.dart';
 import '../../features/activity/models/activity_transaction.dart';
-import '../../features/activity/presentation/activity_detail_page.dart';
+import '../../features/activity/presentation/activity_detail_route.dart';
 import '../../features/activity/presentation/activity_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/pin_page.dart';
@@ -27,6 +28,8 @@ import '../../features/branch/models/branch.dart';
 import '../../features/branch/data/branch_repository.dart';
 import '../../features/profile/presentation/security_page.dart';
 import '../../features/profile/presentation/change_password_page.dart';
+import '../../features/profile/presentation/change_pin_page.dart';
+import '../../features/profile/presentation/edit_profile_page.dart';
 
 abstract final class AppRoutes {
   static const splash = '/';
@@ -49,6 +52,8 @@ abstract final class AppRoutes {
   static const branchDetail = '/branches/detail';
   static const security = '/account/security';
   static const changePassword = '/account/security/password';
+  static const changePin = '/account/security/pin';
+  static const editProfile = '/account/profile';
 }
 
 abstract final class AppRouter {
@@ -115,6 +120,14 @@ abstract final class AppRouter {
         path: AppRoutes.changePassword,
         builder: (_, _) => const ChangePasswordPage(),
       ),
+      GoRoute(
+        path: AppRoutes.changePin,
+        builder: (_, _) => const ChangePinPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        builder: (_, _) => const EditProfilePage(),
+      ),
       GoRoute(path: AppRoutes.branches, builder: (_, _) => const BranchPage()),
       GoRoute(
         path: AppRoutes.branchDetail,
@@ -151,7 +164,11 @@ abstract final class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.activityDetail,
-        builder: (context, state) => ActivityDetailPage(
+        redirect: (_, state) =>
+            state.extra is ActivityTransaction || !BackendConfig.enabled
+            ? null
+            : AppRoutes.activity,
+        builder: (context, state) => ActivityDetailRoute(
           transaction: state.extra is ActivityTransaction
               ? state.extra! as ActivityTransaction
               : ActivityRepository.history.first,

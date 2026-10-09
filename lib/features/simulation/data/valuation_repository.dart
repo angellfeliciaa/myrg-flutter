@@ -2,6 +2,7 @@ import '../../../core/constants/app_assets.dart';
 import '../models/valuation.dart';
 
 abstract interface class ValuationRepository {
+  Future<List<ValuationCategory>> loadCategories();
   Future<List<ValuationBrand>> brands(ValuationCategory category);
   Future<List<ValuationModel>> models(
     ValuationCategory category,
@@ -25,6 +26,9 @@ class MockValuationRepository implements ValuationRepository {
     ValuationCategory('camera', 'Kamera', AppAssets.valuationCamera),
     ValuationCategory('console', 'Game Console', AppAssets.valuationGame),
   ];
+
+  /// Brands with a Figma logo; the backend catalog reuses these for matching names.
+  static const knownBrands = _phoneBrands;
   static const _phoneBrands = [
     ValuationBrand(
       'Apple',
@@ -75,6 +79,9 @@ class MockValuationRepository implements ValuationRepository {
     ValuationBrand('HONOR'),
     ValuationBrand('Infinix'),
   ];
+
+  @override
+  Future<List<ValuationCategory>> loadCategories() async => categories;
 
   @override
   Future<List<ValuationBrand>> brands(ValuationCategory category) async {

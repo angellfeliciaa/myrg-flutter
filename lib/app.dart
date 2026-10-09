@@ -5,6 +5,9 @@ import 'core/constants/app_strings.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
+/// Shows messages that do not belong to one page (e.g. "logged in on another phone").
+final appMessenger = GlobalKey<ScaffoldMessengerState>();
+
 class MyRgApp extends StatelessWidget {
   const MyRgApp({super.key});
 
@@ -18,6 +21,7 @@ class MyRgApp extends StatelessWidget {
       supportedLocales: const [Locale('id', 'ID')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       routerConfig: AppRouter.router,
+      scaffoldMessengerKey: appMessenger,
     );
   }
 }

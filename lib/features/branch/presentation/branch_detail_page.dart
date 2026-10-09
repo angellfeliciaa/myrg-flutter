@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/backend_config.dart';
 import '../../../shared/widgets/phase_one_widgets.dart';
 import '../models/branch.dart';
 import 'branch_page.dart';
@@ -63,24 +65,45 @@ class BranchDetailPage extends StatelessWidget {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Ini simulasi FE. Nomor telepon dan WhatsApp cabang asli belum tersedia; tidak ada panggilan atau pesan yang dikirim.',
-              style: TextStyle(fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 24),
-            PhaseOneButton(
-              label: 'Simulasikan Panggilan',
-              onPressed: () {
-                Navigator.pop(context);
-                messenger.showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Simulasi panggilan selesai. Tidak menghubungi cabang.',
+            if (BackendConfig.enabled) ...[
+              Text(
+                branch.phone == null
+                    ? 'Nomor telepon cabang ini belum tersedia.'
+                    : 'Telepon: ${branch.phone}',
+                style: const TextStyle(fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              if (branch.phone != null)
+                PhaseOneButton(
+                  label: 'Salin Nomor',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: branch.phone!));
+                    Navigator.pop(context);
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Nomor cabang disalin.')),
+                    );
+                  },
+                ),
+            ] else ...[
+              const Text(
+                'Ini simulasi FE. Nomor telepon dan WhatsApp cabang asli belum tersedia; tidak ada panggilan atau pesan yang dikirim.',
+                style: TextStyle(fontSize: 14, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+              PhaseOneButton(
+                label: 'Simulasikan Panggilan',
+                onPressed: () {
+                  Navigator.pop(context);
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Simulasi panggilan selesai. Tidak menghubungi cabang.',
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),
@@ -149,11 +172,7 @@ class BranchDetailPage extends StatelessWidget {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 18),
-              for (final entry in [
-                ('Senin - Jumat', '08:00 - 17:00'),
-                ('Sabtu', '09:00 - 17:00'),
-                ('Minggu', 'Tutup'),
-              ])
+              for (final entry in branch.openingHours)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Row(

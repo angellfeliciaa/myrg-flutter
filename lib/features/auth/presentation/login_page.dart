@@ -9,6 +9,10 @@ import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../data/demo_session.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
+import '../data/auth_api.dart';
+import 'forgot_password.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -37,6 +41,10 @@ class _LoginPageState extends State<LoginPage> {
       _loading = true;
       _error = null;
     });
+    if (BackendConfig.enabled) {
+      await _loginWithBackend();
+      return;
+    }
     final valid = await DemoSession.login(_passwordController.text);
     if (!mounted) return;
     setState(() {
@@ -45,6 +53,36 @@ class _LoginPageState extends State<LoginPage> {
     });
     if (!valid) return;
     context.push(AppRoutes.pin);
+  }
+
+  Future<void> _loginWithBackend() async {
+    final identifier = _identityController.text.trim();
+    try {
+      await AuthApi.login(identifier, _passwordController.text);
+      if (mounted) context.push(AppRoutes.pin);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'DEVICE_VERIFICATION_REQUIRED') {
+        if (identifier.contains('@')) {
+          setState(
+            () => _error =
+                'Perangkat baru: masuk dengan nomor HP agar kode OTP bisa dikirim.',
+          );
+          return;
+        }
+        try {
+          AuthApi.purpose = OtpPurpose.newDevice;
+          await AuthApi.sendOtp(identifier);
+          if (mounted) context.push(AppRoutes.otp, extra: identifier);
+        } on ApiException catch (otpError) {
+          if (mounted) setState(() => _error = otpError.message);
+        }
+        return;
+      }
+      setState(() => _error = e.displayMessage);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _goBack() {
@@ -90,7 +128,22 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _forgot() => showDialog<void>(
+  Future<void> _forgot() async {
+    if (!BackendConfig.enabled) return _forgotDemo();
+    final identity = _identityController.text.trim();
+    final phone = await runForgotPassword(
+      context,
+      initialPhone: identity.contains('@') ? '' : identity,
+    );
+    if (phone == null || !mounted) return;
+    _identityController.text = phone;
+    _passwordController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Password baru disimpan. Silakan masuk.')),
+    );
+  }
+
+  void _forgotDemo() => showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Lupa Password'),

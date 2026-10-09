@@ -8,6 +8,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../providers/onboarding_providers.dart';
+import '../../../core/network/backend_config.dart';
+import '../../../core/session/session_store.dart';
 
 class SplashPage extends ConsumerStatefulWidget {
   const SplashPage({super.key});
@@ -56,6 +58,11 @@ class _SplashPageState extends ConsumerState<SplashPage>
     }
 
     if (!mounted) return;
+    // Connected to the backend with a stored session: unlock with the PIN.
+    if (BackendConfig.enabled && SessionStore.hasSession) {
+      context.go(AppRoutes.pin);
+      return;
+    }
     context.go(hasCompleted ? AppRoutes.login : AppRoutes.onboarding);
   }
 

@@ -9,6 +9,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
+import '../data/auth_api.dart';
 
 class OtpPage extends StatefulWidget {
   const OtpPage({required this.phoneNumber, super.key});
@@ -27,8 +30,9 @@ class _OtpPageState extends State<OtpPage> {
   final _otpFocusNode = FocusNode();
 
   Timer? _resendTimer;
-  var _resendSeconds = _resendDuration;
+  var _resendSeconds = BackendConfig.enabled ? 60 : _resendDuration;
   String? _errorText;
+  var _busy = false;
 
   @override
   void initState() {
@@ -49,7 +53,22 @@ class _OtpPageState extends State<OtpPage> {
     });
   }
 
-  void _resendOtp() {
+  Future<void> _resendOtp() async {
+    if (BackendConfig.enabled) {
+      try {
+        final seconds = await AuthApi.sendOtp(widget.phoneNumber);
+        if (!mounted) return;
+        setState(() {
+          _resendSeconds = seconds;
+          _otpController.clear();
+          _errorText = null;
+        });
+        _startResendTimer();
+      } on ApiException catch (e) {
+        if (mounted) setState(() => _errorText = e.message);
+      }
+      return;
+    }
     setState(() {
       _resendSeconds = _resendDuration;
       _otpController.clear();
@@ -77,6 +96,10 @@ class _OtpPageState extends State<OtpPage> {
     }
 
     FocusManager.instance.primaryFocus?.unfocus();
+    if (BackendConfig.enabled) {
+      _confirmWithBackend();
+      return;
+    }
     if (_otpController.text != '123456') {
       setState(
         () => _errorText = 'Kode OTP demo tidak sesuai. Gunakan 123456.',
@@ -84,6 +107,30 @@ class _OtpPageState extends State<OtpPage> {
       return;
     }
     context.push(AppRoutes.createPin);
+  }
+
+  Future<void> _confirmWithBackend() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await AuthApi.verifyOtp(_otpController.text);
+      if (!mounted) return;
+      switch (AuthApi.purpose) {
+        case OtpPurpose.register:
+          context.push(AppRoutes.createPin);
+        case OtpPurpose.newDevice:
+          await AuthApi.loginWithOtp(); // this phone becomes the trusted device
+          if (mounted) context.go(AppRoutes.home);
+        case OtpPurpose.forgotPassword ||
+            OtpPurpose.changePhone ||
+            OtpPurpose.resetPin:
+          context.pop(true); // the calling flow continues (new password / PIN)
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _errorText = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _goBack() {

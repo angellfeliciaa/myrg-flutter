@@ -7,17 +7,18 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/formatter.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../core/network/backend_config.dart';
+import '../data/catalog_valuation_repository.dart';
 import '../data/valuation_repository.dart';
 import '../models/valuation.dart';
 
 enum _Step { category, brand, model, result }
 
 class SimulationPage extends StatefulWidget {
-  const SimulationPage({
-    this.repository = const MockValuationRepository(),
-    super.key,
-  });
-  final ValuationRepository repository;
+  const SimulationPage({this.repository, super.key});
+
+  /// Defaults to MyRG's catalog in backend mode, Figma fixtures otherwise.
+  final ValuationRepository? repository;
 
   @override
   State<SimulationPage> createState() => _SimulationPageState();
@@ -38,6 +39,21 @@ class _SimulationPageState extends State<SimulationPage> {
   bool _loading = false;
   bool _failed = false;
   int _request = 0;
+  late final ValuationRepository _repository =
+      widget.repository ??
+      (BackendConfig.enabled
+          ? const CatalogValuationRepository()
+          : const MockValuationRepository());
+  late List<ValuationCategory> _categories =
+      _repository is CatalogValuationRepository
+      ? const []
+      : MockValuationRepository.categories;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_repository is CatalogValuationRepository) _load();
+  }
 
   Future<void> _load() async {
     final request = ++_request;
@@ -47,17 +63,21 @@ class _SimulationPageState extends State<SimulationPage> {
       _failed = false;
     });
     try {
+      final categories = step == _Step.category
+          ? await _repository.loadCategories()
+          : null;
       final brands = step == _Step.brand
-          ? await widget.repository.brands(_category!)
+          ? await _repository.brands(_category!)
           : null;
       final models = step == _Step.model
-          ? await widget.repository.models(_category!, _brand!)
+          ? await _repository.models(_category!, _brand!)
           : null;
       final result = step == _Step.result
-          ? await widget.repository.estimate(_category!, _brand!, _model!)
+          ? await _repository.estimate(_category!, _brand!, _model!)
           : null;
       if (!mounted || request != _request) return;
       setState(() {
+        if (categories != null) _categories = categories;
         if (brands != null) _brands = brands;
         if (models != null) _models = models;
         if (result != null) _result = result;
@@ -345,7 +365,7 @@ class _SimulationPageState extends State<SimulationPage> {
   }
 
   List<Widget> _categoryContent() => [
-    for (final category in MockValuationRepository.categories) ...[
+    for (final category in _categories) ...[
       _Surface(
         child: InkWell(
           onTap: () => _chooseCategory(category),

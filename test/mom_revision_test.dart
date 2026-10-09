@@ -48,6 +48,9 @@ Future<void> fillRegistration(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.enterText(fields.at(2), '081234567890');
   await tester.enterText(fields.at(3), 'nasabah@example.com');
+  // Password + confirmation (mentor's decision: the sign-up form has a password).
+  await tester.enterText(fields.at(4), 'rahasia123');
+  await tester.enterText(fields.at(5), 'rahasia123');
   tester.testTextInput.hide();
   await tester.ensureVisible(find.widgetWithText(FilledButton, 'Daftar'));
   await tester.tap(find.widgetWithText(FilledButton, 'Daftar'));

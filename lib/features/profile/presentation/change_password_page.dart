@@ -3,6 +3,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/phase_one_widgets.dart';
 import '../../auth/data/demo_session.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
+import '../../auth/data/auth_api.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -33,11 +36,24 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       _loading = true;
       _error = null;
     });
-    final valid = await DemoSession.changePassword(_old.text, _new.text);
+    var valid = true;
+    String? backendError;
+    if (BackendConfig.enabled) {
+      try {
+        await AuthApi.changePassword(_old.text, _new.text);
+      } on ApiException catch (e) {
+        valid = false;
+        backendError = e.displayMessage;
+      }
+    } else {
+      valid = await DemoSession.changePassword(_old.text, _new.text);
+    }
     if (!mounted) return;
     setState(() {
       _loading = false;
-      if (!valid) _error = 'Password lama tidak sesuai dengan akun demo.';
+      if (!valid) {
+        _error = backendError ?? 'Password lama tidak sesuai dengan akun demo.';
+      }
     });
     if (!valid) return;
     _old.clear();
@@ -51,9 +67,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           color: AppColors.success,
           size: 40,
         ),
-        title: const Text('Password demo diperbarui'),
-        content: const Text(
-          'Perubahan hanya berlaku selama aplikasi ini terbuka. Tidak ada password akun asli yang diubah.',
+        title: Text(
+          BackendConfig.enabled
+              ? 'Password diperbarui'
+              : 'Password demo diperbarui',
+        ),
+        content: Text(
+          BackendConfig.enabled
+              ? 'Gunakan password baru saat masuk berikutnya. Perangkat lain sudah dikeluarkan.'
+              : 'Perubahan hanya berlaku selama aplikasi ini terbuka. Tidak ada password akun asli yang diubah.',
         ),
         actions: [
           TextButton(

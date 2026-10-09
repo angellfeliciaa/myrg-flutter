@@ -14,6 +14,7 @@ class PinPadScreen extends StatefulWidget {
     required this.onBack,
     this.dark = false,
     this.hint,
+    this.footer,
     super.key,
   });
 
@@ -23,6 +24,9 @@ class PinPadScreen extends StatefulWidget {
   final VoidCallback onBack;
   final bool dark;
   final String? hint;
+
+  /// Optional action under the keypad (e.g. "Lupa PIN?").
+  final Widget? footer;
 
   @override
   State<PinPadScreen> createState() => _PinPadScreenState();
@@ -181,6 +185,7 @@ class _PinPadScreenState extends State<PinPadScreen> {
                                       : AppColors.textSecondary,
                                 ),
                               ),
+                            ?widget.footer,
                           ],
                         ),
                       ),
@@ -291,13 +296,15 @@ class _NumberPad extends StatelessWidget {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onDeletePressed,
-                child: ClipOval(child: Image.asset(
-                  dark
-                      ? 'assets/icons/pin_enter_delete.png'
-                      : AppAssets.pinDeleteButton,
-                  width: 80,
-                  height: 80,
-                )),
+                child: ClipOval(
+                  child: Image.asset(
+                    dark
+                        ? 'assets/icons/pin_enter_delete.png'
+                        : AppAssets.pinDeleteButton,
+                    width: 80,
+                    height: 80,
+                  ),
+                ),
               ),
             ),
           ],

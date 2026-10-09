@@ -10,6 +10,8 @@ import '../../auth/data/demo_session.dart';
 import '../../home/presentation/widgets/home_bottom_navigation.dart';
 import '../../membership/data/member_repository.dart';
 import '../../membership/models/member_profile.dart';
+import '../../../core/network/backend_config.dart';
+import '../../auth/data/auth_api.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -82,15 +84,27 @@ class _AccountPageState extends State<AccountPage> {
           const SizedBox(height: 8),
           Text(contact.phone),
           const SizedBox(height: 16),
-          const Text(
-            'Edit nama, foto, nomor telepon, dan email masuk fase 2. Ganti password sudah tersedia di fase 1.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: AppColors.textSecondary,
+          if (BackendConfig.enabled) ...[
+            const SizedBox(height: 8),
+            PhaseOneButton(
+              label: 'Edit Profil',
+              onPressed: () {
+                Navigator.pop(context);
+                this.context.push(AppRoutes.editProfile);
+              },
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 12),
+          ] else ...[
+            const Text(
+              'Edit nama, foto, nomor telepon, dan email masuk fase 2. Ganti password sudah tersedia di fase 1.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           PhaseOneButton(
             label: 'Ganti Password',
             onPressed: () {
@@ -121,8 +135,9 @@ class _AccountPageState extends State<AccountPage> {
       ),
     );
     if (confirm == true && mounted) {
+      if (BackendConfig.enabled) await AuthApi.logout();
       DemoSession.logout();
-      context.go(AppRoutes.login);
+      if (mounted) context.go(AppRoutes.login);
     }
   }
 
@@ -186,7 +201,17 @@ class _AccountPageState extends State<AccountPage> {
                           padding: const EdgeInsets.all(20),
                           child: Row(
                             children: [
-                              if (contact.isFixture)
+                              if (contact.avatarUrl != null)
+                                CircleAvatar(
+                                  radius: 32,
+                                  backgroundColor: AppColors.primarySoft,
+                                  // Decoded at display size, not the 1024 px upload.
+                                  foregroundImage: ResizeImage(
+                                    NetworkImage(contact.avatarUrl!),
+                                    width: 192,
+                                  ),
+                                )
+                              else if (contact.isFixture)
                                 ClipOval(
                                   child: SizedBox.square(
                                     dimension: 64,

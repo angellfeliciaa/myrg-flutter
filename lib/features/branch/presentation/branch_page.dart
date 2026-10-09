@@ -75,24 +75,26 @@ class _BranchPageState extends State<BranchPage> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Jarak contoh',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final value in <double?>[null, 2, 3, 5])
-                      ChoiceChip(
-                        label: Text(
-                          value == null ? 'Semua' : '${value.toInt()} km',
+                if (_branches.any((b) => b.distanceKm != null)) ...[
+                  const Text(
+                    'Jarak contoh',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final value in <double?>[null, 2, 3, 5])
+                        ChoiceChip(
+                          label: Text(
+                            value == null ? 'Semua' : '${value.toInt()} km',
+                          ),
+                          selected: radius == value,
+                          onSelected: (_) => update(() => radius = value),
                         ),
-                        selected: radius == value,
-                        onSelected: (_) => update(() => radius = value),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 const Text(
                   'Layanan',
                   style: TextStyle(fontWeight: FontWeight.w600),
@@ -150,11 +152,16 @@ class _BranchPageState extends State<BranchPage> {
             .where(
               (b) =>
                   '${b.name} ${b.address}'.toLowerCase().contains(query) &&
-                  (_radius == null || b.distanceKm <= _radius!) &&
+                  (_radius == null ||
+                      (b.distanceKm != null && b.distanceKm! <= _radius!)) &&
                   (_service == null || b.services.contains(_service)),
             )
             .toList()
-          ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+          ..sort(
+            (a, b) => (a.distanceKm ?? double.infinity).compareTo(
+              b.distanceKm ?? double.infinity,
+            ),
+          );
     return PhaseOneScaffold(
       title: 'Cabang',
       child: RefreshIndicator(
@@ -404,11 +411,13 @@ class BranchMeta extends StatelessWidget {
     runSpacing: 4,
     crossAxisAlignment: WrapCrossAlignment.center,
     children: [
-      Text(
-        '${branch.distanceKm.toStringAsFixed(1)} Km',
-        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-      ),
-      const Text('|', style: TextStyle(color: AppColors.divider)),
+      if (branch.distanceKm != null) ...[
+        Text(
+          '${branch.distanceKm!.toStringAsFixed(1)} Km',
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        const Text('|', style: TextStyle(color: AppColors.divider)),
+      ],
       Row(
         mainAxisSize: MainAxisSize.min,
         children: [

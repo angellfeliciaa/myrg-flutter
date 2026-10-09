@@ -14,6 +14,10 @@ import 'widgets/home_membership_card.dart';
 import 'widgets/home_quick_actions.dart';
 import 'widgets/home_transaction_card.dart';
 import '../../../shared/widgets/carousel_auto_play.dart';
+import '../../../core/network/backend_config.dart';
+import '../../activity/data/activity_api.dart';
+import '../../membership/data/member_api.dart';
+import '../../../core/network/api_exception.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,6 +27,78 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  /// Home "Transaksi Berjalan": backend data when connected, the demo cards otherwise.
+  List<Widget> get _transactionCards {
+    if (!BackendConfig.enabled) {
+      return [
+        HomeTransactionCard(
+          dueLabel: 'Segera jatuh tempo dalam 3 hari',
+          productName: 'Apple iPhone 13 | 128 GB | Purple',
+          dueDate: '31 Juli 2026',
+          amount: 'Rp 5.700.000',
+          onManage: () => context.push(
+            AppRoutes.activityDetail,
+            extra: ActivityRepository.ongoing.first,
+          ),
+        ),
+        HomeTransactionCard(
+          dueLabel: 'Jatuh tempo dalam 12 hari',
+          productName: 'Emas Antam | 5 gram',
+          productIcon: Icons.diamond_outlined,
+          dueDate: '9 Agustus 2026',
+          amount: 'Rp 4.250.000',
+          onManage: () => context.push(
+            AppRoutes.activityDetail,
+            extra: ActivityRepository.goldPawn,
+          ),
+        ),
+      ];
+    }
+    if (ActivityRepository.loading) {
+      final failed = ActivityApi.loadError.value != null;
+      return [
+        HomeTransactionCard(
+          dueLabel: failed
+              ? 'Transaksi belum bisa dimuat'
+              : 'Memuat transaksi...',
+          productName: failed ? 'Tarik layar ke bawah untuk mencoba lagi' : '',
+          dueDate: '-',
+          amount: '-',
+          onManage: () => context.go(AppRoutes.activity),
+        ),
+      ];
+    }
+    final ongoing = ActivityRepository.ongoing;
+    if (ongoing.isEmpty) {
+      return [
+        HomeTransactionCard(
+          dueLabel: 'Belum ada transaksi berjalan',
+          productName: 'Ajukan gadai pertamamu di MyRG',
+          dueDate: '-',
+          amount: '-',
+          onManage: () => context.push(AppRoutes.pawn),
+        ),
+      ];
+    }
+    return [
+      for (final tx in ongoing.take(5))
+        HomeTransactionCard(
+          dueLabel: tx.attentionLabel ?? 'Gadai aktif',
+          productName: [
+            tx.title,
+            if (tx.subtitle != null) tx.subtitle!,
+          ].join(' | '),
+          dueDate: tx.dueDate ?? '-',
+          amount: tx.amount,
+          onManage: () => context.push(AppRoutes.activityDetail, extra: tx),
+        ),
+    ];
+  }
+
+  void _onActivityData() {
+    if (mounted) setState(() {});
+  }
+
   final _scrollController = ScrollController();
   final _transactionController = PageController(viewportFraction: 0.9);
   int _transactionPage = 0;
@@ -33,6 +109,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    ActivityApi.ongoing.addListener(_onActivityData);
+    ActivityApi.loadError.addListener(_onActivityData);
+    if (BackendConfig.enabled) {
+      ActivityApi.load().catchError((_) {});
+      MemberApi.refreshCard();
+    }
     _scrollController.addListener(_updateCarouselVisibility);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _updateCarouselVisibility(),
@@ -67,6 +149,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    ActivityApi.ongoing.removeListener(_onActivityData);
+    ActivityApi.loadError.removeListener(_onActivityData);
     _scrollController.removeListener(_updateCarouselVisibility);
     _scrollController.dispose();
     _transactionController.dispose();
@@ -74,7 +158,21 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refresh() async {
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!BackendConfig.enabled) {
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      return;
+    }
+    try {
+      await Future.wait([
+        ActivityApi.load(force: true),
+        MemberApi.refreshCard(force: true),
+      ]);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _showComingSoon(String feature) {
@@ -123,6 +221,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final transactionCards = _transactionCards; // built once per frame
     final screenWidth = MediaQuery.sizeOf(context).width;
     final heroHeight = screenWidth / HomeHeroCarousel.aspectRatio;
     final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
@@ -229,7 +328,7 @@ class _HomePageState extends State<HomePage> {
                     child: CarouselAutoPlay(
                       controller: _transactionController,
                       page: _transactionPage,
-                      itemCount: 2,
+                      itemCount: transactionCards.length,
                       interval: const Duration(seconds: 7),
                       enabled: _transactionsVisible,
                       child: PageView(
@@ -237,29 +336,7 @@ class _HomePageState extends State<HomePage> {
                         padEnds: false,
                         onPageChanged: (value) =>
                             setState(() => _transactionPage = value),
-                        children: [
-                          HomeTransactionCard(
-                            dueLabel: 'Segera jatuh tempo dalam 3 hari',
-                            productName: 'Apple iPhone 13 | 128 GB | Purple',
-                            dueDate: '31 Juli 2026',
-                            amount: 'Rp 5.700.000',
-                            onManage: () => context.push(
-                              AppRoutes.activityDetail,
-                              extra: ActivityRepository.ongoing.first,
-                            ),
-                          ),
-                          HomeTransactionCard(
-                            dueLabel: 'Jatuh tempo dalam 12 hari',
-                            productName: 'Emas Antam | 5 gram',
-                            productIcon: Icons.diamond_outlined,
-                            dueDate: '9 Agustus 2026',
-                            amount: 'Rp 4.250.000',
-                            onManage: () => context.push(
-                              AppRoutes.activityDetail,
-                              extra: ActivityRepository.goldPawn,
-                            ),
-                          ),
-                        ],
+                        children: transactionCards,
                       ),
                     ),
                   ),

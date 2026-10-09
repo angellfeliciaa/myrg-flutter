@@ -7,19 +7,21 @@ import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/flow_widgets.dart';
 import '../../../shared/widgets/rg_webview_page.dart';
 import '../../membership/data/member_repository.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
 import '../data/device_inspector.dart';
+import '../data/online_pawn_api.dart';
+import 'pawn_photo_page.dart';
+import '../../support/presentation/support_page.dart';
 import '../models/pawn_submission.dart';
 import '../../simulation/models/valuation.dart';
 import '../../../core/utils/formatter.dart';
 
 class PawnPage extends StatefulWidget {
-  const PawnPage({
-    this.inspector = const UnavailableDeviceInspector(),
-    this.submission,
-    this.estimate,
-    super.key,
-  });
-  final DeviceInspector inspector;
+  const PawnPage({this.inspector, this.submission, this.estimate, super.key});
+
+  /// Defaults to [DeviceInspector.forApp] (RG's SDK once it is added).
+  final DeviceInspector? inspector;
   final PawnSubmission? submission;
   final ValuationResult? estimate;
   @override
@@ -36,6 +38,17 @@ class _PawnPageState extends State<PawnPage> {
   bool _identityReady = false;
   bool _busy = false;
   String? _error;
+  late final DeviceInspector _inspector =
+      widget.inspector ?? DeviceInspector.forApp();
+
+  /// Backend mode: the device check is done, the photos (part 2) are still to send.
+  bool get _needsPhotos =>
+      BackendConfig.enabled &&
+      _submission != null &&
+      !_submission!.isPreview &&
+      !_photosSent;
+  bool _photosSent = false;
+  bool _manualReview = false;
   final _branch = TextEditingController();
   final _bank = TextEditingController();
   final _address = TextEditingController();
@@ -72,13 +85,17 @@ class _PawnPageState extends State<PawnPage> {
       _error = null;
     });
     try {
-      final result = await widget.inspector.inspect(context);
+      final result = await _inspector.inspect(context);
       if (result != null && mounted) {
         setState(() {
           _submission = result;
-          _step = 1;
+          _photosSent = false;
+          if (!BackendConfig.enabled || result.isPreview) _step = 1;
         });
+        if (_needsPhotos) await _takePhotos();
       }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.displayMessage);
     } catch (_) {
       if (mounted) {
         setState(
@@ -89,6 +106,33 @@ class _PawnPageState extends State<PawnPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _takePhotos() async {
+    final submission = _submission!;
+    final range = await Navigator.push<PawnRange>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PawnPhotoPage(
+          formId: submission.formId,
+          productName: submission.productName,
+        ),
+      ),
+    );
+    if (range == null || !mounted) return;
+    setState(() {
+      _submission = PawnSubmission(
+        formId: submission.formId,
+        transactionNumber: submission.transactionNumber,
+        productName: submission.productName,
+        estimatedLoan: range.label,
+        estimatedProcessHours: submission.estimatedProcessHours,
+      );
+      _photosSent = true;
+      _manualReview = range.manualReviewRequired;
+      _step = 1;
+      _error = null;
+    });
   }
 
   void _continue() {
@@ -119,8 +163,9 @@ class _PawnPageState extends State<PawnPage> {
     }
     if (_submission?.isPreview != true) {
       setState(
-        () => _error =
-            'Pengajuan belum dapat dikirim. Silakan coba lagi setelah layanan tersedia.',
+        () => _error = BackendConfig.enabled
+            ? 'Hasil pemeriksaan dan foto sudah diterima Raja Gadai. Pengiriman barang dan pencairan belum bisa diatur dari aplikasi; tim Raja Gadai akan menghubungi kamu.'
+            : 'Pengajuan belum dapat dikirim. Silakan coba lagi setelah layanan tersedia.',
       );
       return;
     }
@@ -206,6 +251,30 @@ class _PawnPageState extends State<PawnPage> {
   );
 
   List<Widget> _goods() => [
+    if (_needsPhotos) ...[
+      FlowSection(
+        title: _submission!.productName,
+        children: [
+          FlowValue('Nomor pengajuan', _submission!.formId),
+          Text(
+            _submission!.estimatedLoan,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pemeriksaan perangkat selesai. Langkah berikutnya: foto 7 sisi barang.',
+            style: TextStyle(fontSize: 13, height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          AppButton(label: 'Ambil Foto Barang', onPressed: _takePhotos),
+        ],
+      ),
+      const SizedBox(height: 16),
+    ],
     if (_estimate case final estimate?) ...[
       FlowSection(
         title: estimate.productName,
@@ -332,6 +401,13 @@ class _PawnPageState extends State<PawnPage> {
             'Estimasi proses: ${_submission!.estimatedProcessHours} jam setelah data lengkap.',
             style: const TextStyle(fontSize: 13),
           ),
+          if (_manualReview) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Foto diambil dari HP yang sama: estimasi sudah dipotong dan barang diperiksa ulang di cabang.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
         ],
       ),
       if (member.canReuseVerification)
@@ -360,10 +436,21 @@ class _PawnPageState extends State<PawnPage> {
         ),
       const SizedBox(height: 20),
       OutlinedButton.icon(
-        onPressed: () => context.push(
-          AppRoutes.support,
-          extra: _submission!.transactionNumber,
-        ),
+        onPressed: () => _submission!.isPreview || !BackendConfig.enabled
+            ? context.push(
+                AppRoutes.support,
+                extra: _submission!.transactionNumber,
+              )
+            : Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                  // Not a pawn yet: the banding is about the Gadai Online submission.
+                  builder: (_) => SupportPage(
+                    transactionNumber: _submission!.formId,
+                    referenceType: 'valuation',
+                  ),
+                ),
+              ),
         icon: const Icon(Icons.support_agent_rounded),
         label: const Text('Ajukan Banding'),
       ),

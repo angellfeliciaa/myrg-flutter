@@ -1,7 +1,22 @@
+import '../../../core/network/backend_config.dart';
 import '../models/activity_transaction.dart';
+import 'activity_api.dart';
 
 abstract final class ActivityRepository {
-  static const ongoing = <ActivityTransaction>[
+  /// Backend data when connected (BackendConfig.enabled), demo fixtures otherwise. While the
+  /// backend data is loading (or failed) the lists are empty: never the demo pawns.
+  static List<ActivityTransaction> get ongoing =>
+      ActivityApi.ongoing.value ??
+      (BackendConfig.enabled ? const [] : fixtureOngoing);
+  static List<ActivityTransaction> get history =>
+      ActivityApi.history.value ??
+      (BackendConfig.enabled ? const [] : fixtureHistory);
+
+  /// Backend mode, lists not there yet.
+  static bool get loading =>
+      BackendConfig.enabled && ActivityApi.ongoing.value == null;
+
+  static const fixtureOngoing = <ActivityTransaction>[
     ActivityTransaction(
       id: 'RG77123',
       dateIso: '2026-07-31',
@@ -99,7 +114,7 @@ abstract final class ActivityRepository {
     ),
   ];
 
-  static const history = <ActivityTransaction>[
+  static const fixtureHistory = <ActivityTransaction>[
     ActivityTransaction(
       id: 'DEMO-RG-SUCCESS',
       dateIso: '2026-10-07',

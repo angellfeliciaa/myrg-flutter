@@ -9,6 +9,9 @@ import '../../../core/router/app_router.dart';
 import '../../home/presentation/widgets/home_bottom_navigation.dart';
 import '../data/activity_repository.dart';
 import '../models/activity_transaction.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
+import '../data/activity_api.dart';
 
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
@@ -19,6 +22,35 @@ class ActivityPage extends StatefulWidget {
 
 class _ActivityPageState extends State<ActivityPage> {
   final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    ActivityApi.ongoing.addListener(_onData);
+    ActivityApi.history.addListener(_onData);
+    ActivityApi.loadError.addListener(_onData);
+    ActivityApi.load().catchError((Object e) => _showError(e));
+  }
+
+  void _onData() {
+    if (mounted) setState(() {});
+  }
+
+  void _showError(Object e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException
+                ? e.message
+                : 'Data belum bisa dimuat. Coba lagi.',
+          ),
+        ),
+      );
+  }
+
   int _tabIndex = 0;
   String _category = 'Semua';
   String _status = 'Semua';
@@ -34,6 +66,9 @@ class _ActivityPageState extends State<ActivityPage> {
 
   @override
   void dispose() {
+    ActivityApi.ongoing.removeListener(_onData);
+    ActivityApi.history.removeListener(_onData);
+    ActivityApi.loadError.removeListener(_onData);
     _searchController.dispose();
     super.dispose();
   }
@@ -353,6 +388,32 @@ class _ActivityPageState extends State<ActivityPage> {
   }
 
   Widget _buildContent() {
+    if (ActivityRepository.loading) {
+      // Backend mode, first load still running or failed.
+      if (ActivityApi.loadError.value == null) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Transaksi belum bisa dimuat.',
+                textAlign: TextAlign.center,
+              ),
+              TextButton(
+                onPressed: () => ActivityApi.load(
+                  force: true,
+                ).catchError((Object e) => _showError(e)),
+                child: const Text('Coba lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final transactions = _visibleTransactions;
     if (transactions.isEmpty) {
       return _EmptyActivity(
@@ -370,7 +431,15 @@ class _ActivityPageState extends State<ActivityPage> {
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () async {
-        await Future<void>.delayed(const Duration(milliseconds: 650));
+        if (!BackendConfig.enabled) {
+          await Future<void>.delayed(const Duration(milliseconds: 650));
+          return;
+        }
+        try {
+          await ActivityApi.refreshFromRg();
+        } catch (e) {
+          _showError(e);
+        }
       },
       child: _tabIndex == 0
           ? _OngoingList(transactions: transactions, onOpen: _openDetail)

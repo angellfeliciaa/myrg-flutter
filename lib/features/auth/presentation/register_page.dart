@@ -13,6 +13,9 @@ import '../../../core/network/rg_integration.dart';
 import '../data/registration_repository.dart';
 import '../../membership/data/member_repository.dart';
 import '../data/demo_session.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/backend_config.dart';
+import '../data/auth_api.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({this.repository, super.key});
@@ -29,6 +32,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _referralController = TextEditingController();
+  // Mentor's decision: the sign-up form has a password (login = email/phone + password, then PIN).
+  final _passwordController = TextEditingController();
+  final _passwordConfirmController = TextEditingController();
 
   final _phoneFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
@@ -85,6 +91,10 @@ class _RegisterPageState extends State<RegisterPage> {
       _isSubmitting = true;
       _submitError = null;
     });
+    if (BackendConfig.enabled) {
+      await _submitToBackend();
+      return;
+    }
     try {
       final outcome = await _repository.validateAndRegister(
         RegistrationRequest(
@@ -160,6 +170,29 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
+  /// Backend: store the form and send the OTP. Whether the phone is an existing Raja Gadai member
+  /// is answered after the OTP + PIN (pin/create), so nobody can look up members by phone number.
+  Future<void> _submitToBackend() async {
+    final phone = _phoneController.text.trim();
+    try {
+      await AuthApi.register(
+        name: _fullNameController.text.trim(),
+        birthDate: _selectedBirthDate!,
+        phone: phone,
+        password: _passwordController.text,
+        email: _emailController.text.trim(),
+        referral: _referralController.text.trim(),
+      );
+      if (!mounted) return;
+      DemoSession.setContact(email: _emailController.text.trim(), phone: phone);
+      context.push(AppRoutes.otp, extra: phone);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _submitError = e.displayMessage);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   void _goToLogin() {
     FocusManager.instance.primaryFocus?.unfocus();
     if (context.canPop()) {
@@ -176,6 +209,8 @@ class _RegisterPageState extends State<RegisterPage> {
     _phoneController.dispose();
     _emailController.dispose();
     _referralController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmController.dispose();
     _phoneFocusNode.dispose();
     _emailFocusNode.dispose();
     _referralFocusNode.dispose();
@@ -306,6 +341,38 @@ class _RegisterPageState extends State<RegisterPage> {
                               validator: Validators.optionalEmail,
                               onFieldSubmitted: (_) =>
                                   _referralFocusNode.requestFocus(),
+                            ),
+                            const SizedBox(height: 18),
+                            _RegisterField(
+                              label: 'Password',
+                              hintText: 'Minimal 8 karakter, huruf dan angka',
+                              controller: _passwordController,
+                              obscureText: true,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.newPassword],
+                              validator: (value) {
+                                final base = Validators.password(value);
+                                if (base != null) return base;
+                                final hasLetter = RegExp(
+                                  r'[A-Za-z]',
+                                ).hasMatch(value!);
+                                final hasDigit = RegExp(r'\d').hasMatch(value);
+                                return hasLetter && hasDigit
+                                    ? null
+                                    : 'Password harus berisi huruf dan angka';
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                            _RegisterField(
+                              label: 'Konfirmasi Password',
+                              hintText: 'Ulangi password',
+                              controller: _passwordConfirmController,
+                              obscureText: true,
+                              textInputAction: TextInputAction.next,
+                              validator: (value) =>
+                                  value == _passwordController.text
+                                  ? null
+                                  : 'Password tidak sama',
                             ),
                             const SizedBox(height: 18),
                             _RegisterField(
@@ -443,8 +510,10 @@ class _RegisterField extends StatelessWidget {
     this.suffix,
     this.onTap,
     this.onFieldSubmitted,
+    this.obscureText = false,
   });
 
+  final bool obscureText;
   final String label;
   final String hintText;
   final TextEditingController controller;
@@ -488,6 +557,7 @@ class _RegisterField extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextFormField(
+          obscureText: obscureText,
           controller: controller,
           focusNode: focusNode,
           keyboardType: keyboardType,
