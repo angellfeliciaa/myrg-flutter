@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../session/session_store.dart';
 import 'api_exception.dart';
@@ -70,16 +71,31 @@ abstract final class MyrgApi {
     final token = auth ? SessionStore.accessToken : null;
     if (token != null) headers['Authorization'] = 'Bearer $token';
 
-    final Response<dynamic> res;
+    Response<dynamic> res;
     try {
-      res = await _dio.request<dynamic>(
-        path,
-        data: body,
-        queryParameters: query?..removeWhere((_, v) => v == null),
-        options: Options(method: method, headers: headers),
-      );
-    } on DioException {
-      throw ApiException.network;
+      res = await _request(method, path, body, query, headers);
+    } on DioException catch (first) {
+      // A GET changes nothing on the server, so it is safe to try once more. This covers a
+      // kept-alive connection the server already closed (common after the app sat idle, e.g.
+      // behind a permission dialog) and a brief drop on mobile data.
+      if (method != 'GET' || !_worthRetrying(first)) {
+        if (kDebugMode) {
+          debugPrint(
+            'MyRG API $method $path failed: ${first.type} ${first.error}',
+          );
+        }
+        throw ApiException.network;
+      }
+      try {
+        res = await _request(method, path, body, query, headers);
+      } on DioException catch (second) {
+        if (kDebugMode) {
+          debugPrint(
+            'MyRG API $method $path failed twice: ${second.type} ${second.error}',
+          );
+        }
+        throw ApiException.network;
+      }
     }
 
     final status = res.statusCode ?? 0;
@@ -112,6 +128,24 @@ abstract final class MyrgApi {
     }
     throw error;
   }
+
+  static Future<Response<dynamic>> _request(
+    String method,
+    String path,
+    Object? body,
+    Map<String, dynamic>? query,
+    Map<String, dynamic> headers,
+  ) => _dio.request<dynamic>(
+    path,
+    data: body,
+    queryParameters: query?..removeWhere((_, v) => v == null),
+    options: Options(method: method, headers: headers),
+  );
+
+  /// Connection-level failures only; a timeout already cost the member long enough.
+  static bool _worthRetrying(DioException e) =>
+      e.type == DioExceptionType.connectionError ||
+      e.type == DioExceptionType.unknown;
 
   /// All requests that found an expired token wait for the same refresh.
   static Future<void> _refreshOnce() {

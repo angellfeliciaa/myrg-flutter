@@ -473,9 +473,16 @@ class _SimulationPageState extends State<SimulationPage> {
         ),
         const SizedBox(height: 24),
       ],
-      _sectionLabel('Semua Merk'),
-      const SizedBox(height: 16),
-      if (all.isEmpty)
+      // Every brand is already shown under "Merk Popular": no empty "not found" box below it.
+      if (all.isEmpty && query.isEmpty && popular.isNotEmpty)
+        const SizedBox.shrink()
+      else ...[
+        _sectionLabel('Semua Merk'),
+        const SizedBox(height: 16),
+      ],
+      if (all.isEmpty && query.isEmpty && popular.isNotEmpty)
+        const SizedBox.shrink()
+      else if (all.isEmpty)
         _empty(
           'Merk tidak ditemukan',
           'Coba kata kunci lain atau hapus pencarian.',
@@ -652,9 +659,12 @@ class _SimulationPageState extends State<SimulationPage> {
       Padding(
         padding: const EdgeInsets.only(top: 12),
         child: Text(
-          BackendConfig.enabled
+          !BackendConfig.enabled
+              ? 'Simulasi FE • Data dan nominal contoh, bukan penawaran pinjaman.'
+              : CatalogValuationRepository.usesCoreRg(result.model)
               ? 'Estimasi awal, bukan penawaran pinjaman. Nilai akhir ditentukan setelah barang diperiksa Raja Gadai.'
-              : 'Simulasi FE • Data dan nominal contoh, bukan penawaran pinjaman.',
+              // Only Handphone and Laptop come from Raja Gadai's item list so far.
+              : 'Data contoh: kategori ini belum memakai daftar barang Raja Gadai, jadi nominalnya hanya ilustrasi.',
           style: const TextStyle(
             fontSize: 11,
             height: 1.4,
@@ -861,7 +871,8 @@ class _FeedbackState extends StatelessWidget {
   final String? message;
   @override
   Widget build(BuildContext context) => _Surface(
-    child: Padding(
+    child: Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [

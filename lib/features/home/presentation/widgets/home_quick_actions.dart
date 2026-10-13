@@ -100,7 +100,7 @@ class HomeQuickActions extends StatelessWidget {
               crossAxisCount: 4,
               crossAxisSpacing: 8,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.85,
+              childAspectRatio: 0.8, // room for a two-line label under the icon
             ),
             itemBuilder: (context, index) {
               final action = _actions[index];
@@ -111,7 +111,9 @@ class HomeQuickActions extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                   onTap: () => onActionTap(action.label),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    // Icons line up along the top; a two-line label ("Cek Pinjaman")
+                    // grows downwards instead of pushing its icon up.
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Container(
                         width: 48,

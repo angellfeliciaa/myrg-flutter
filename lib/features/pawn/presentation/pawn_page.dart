@@ -116,6 +116,7 @@ class _PawnPageState extends State<PawnPage> {
         builder: (_) => PawnPhotoPage(
           formId: submission.formId,
           productName: submission.productName,
+          estimate: submission.estimatedLoan,
         ),
       ),
     );
@@ -139,8 +140,9 @@ class _PawnPageState extends State<PawnPage> {
     final member = MemberRepository.profile.value;
     if (!member.canReuseVerification && !_identityReady) {
       setState(
-        () => _error =
-            'Verifikasi KTP dan rekening diperlukan sebelum melanjutkan.',
+        () => _error = BackendConfig.enabled
+            ? 'Hasil pemeriksaan dan foto sudah diterima Raja Gadai. Verifikasi KTP dan rekening belum bisa dilakukan dari aplikasi; tim Raja Gadai akan menghubungi kamu untuk langkah berikutnya.'
+            : 'Verifikasi KTP dan rekening diperlukan sebelum melanjutkan.',
       );
       return;
     }

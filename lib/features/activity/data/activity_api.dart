@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/backend_config.dart';
 import '../../../core/network/myrg_api.dart';
 import '../models/activity_transaction.dart';
@@ -55,6 +56,19 @@ abstract final class ActivityApi {
       history.value = results[1];
       loadError.value = null;
       _loadedAt = DateTime.now();
+    } on ApiException catch (e) {
+      // A new customer has no Raja Gadai member number yet, so there is nothing to list:
+      // that is an empty list, not a failure.
+      if (e.code == 'MEMBER_NOT_LINKED') {
+        if (generation != _generation) return;
+        ongoing.value = const [];
+        history.value = const [];
+        loadError.value = null;
+        _loadedAt = DateTime.now();
+        return;
+      }
+      if (generation == _generation) loadError.value = e;
+      rethrow;
     } catch (e) {
       if (generation == _generation) loadError.value = e;
       rethrow;
@@ -73,7 +87,12 @@ abstract final class ActivityApi {
 
   /// Pull-to-refresh: re-reads the member's transactions from Raja Gadai (max once per 2 minutes).
   static Future<void> refreshFromRg() async {
-    await MyrgApi.post('/transactions/refresh');
+    try {
+      await MyrgApi.post('/transactions/refresh');
+    } on ApiException catch (e) {
+      // A new customer has nothing at Raja Gadai to re-read.
+      if (e.code != 'MEMBER_NOT_LINKED') rethrow;
+    }
     await load(force: true);
   }
 

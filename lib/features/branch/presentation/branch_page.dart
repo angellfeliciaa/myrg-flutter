@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/location/device_location.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/backend_config.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/phase_one_widgets.dart';
@@ -19,6 +23,7 @@ class _BranchPageState extends State<BranchPage> {
   final _search = TextEditingController();
   List<Branch> _branches = [];
   bool _loading = true, _failed = false;
+  String? _failure;
   double? _radius;
   String? _service;
 
@@ -56,10 +61,7 @@ class _BranchPageState extends State<BranchPage> {
     }
     _lastPosition = result;
     try {
-      final branches = await widget.repository.loadNear(
-        result.latitude!,
-        result.longitude!,
-      );
+      final branches = await _fetch(result);
       if (!mounted) return;
       setState(() {
         _branches = branches;
@@ -71,6 +73,36 @@ class _BranchPageState extends State<BranchPage> {
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  /// Backend mode asks for the outlets that match the search box and the distance filter
+  /// (nearest first when the position is known); demo mode loads its fixtures.
+  Future<List<Branch>> _fetch(LocationResult? position) => BackendConfig.enabled
+      ? widget.repository.find(
+          lat: position?.latitude,
+          lng: position?.longitude,
+          q: _search.text.trim(),
+          radiusKm: _radius,
+        )
+      : widget.repository.load();
+
+  Timer? _searchDelay;
+  int _searchRun = 0;
+
+  /// Search box / filter changed: ask the backend again shortly after the last keystroke,
+  /// since only a page of outlets is on the phone.
+  void _searchSoon({bool now = false}) {
+    if (!BackendConfig.enabled) return;
+    _searchDelay?.cancel();
+    _searchDelay = Timer(Duration(milliseconds: now ? 0 : 400), () async {
+      final run = ++_searchRun;
+      try {
+        final branches = await _fetch(_lastPosition);
+        if (mounted && run == _searchRun) setState(() => _branches = branches);
+      } catch (_) {
+        // Keep what is on screen; the next keystroke or a pull to refresh tries again.
+      }
+    });
   }
 
   Future<void> _fixLocation() async {
@@ -87,27 +119,43 @@ class _BranchPageState extends State<BranchPage> {
     setState(() {
       _loading = true;
       _failed = false;
+      _failure = null;
     });
     try {
-      final known = BackendConfig.enabled ? _lastPosition : null;
-      final branches = known == null
-          ? await widget.repository.load()
-          : await widget.repository.loadNear(known.latitude!, known.longitude!);
+      // Backend mode: find the phone first, so the page opens straight on the nearest outlets
+      // instead of flashing the whole unsorted list (Raja Gadai has hundreds of outlets).
+      var known = BackendConfig.enabled ? _lastPosition : null;
+      final fromLastVisit = known != null;
+      LocationProblem? problem;
+      if (BackendConfig.enabled && known == null) {
+        final ask = !_askedThisSession;
+        _askedThisSession = true;
+        final result = await DeviceLocation.current(request: ask);
+        if (result.ok) {
+          known = result;
+          _lastPosition = result;
+        } else {
+          problem = result.problem;
+        }
+      }
+      final branches = await _fetch(known);
       if (mounted) {
         setState(() {
           _branches = branches;
           _loading = false;
           _located = known != null;
+          _locationProblem = problem;
         });
-        final ask = !_askedThisSession;
-        _askedThisSession = true;
-        _locate(request: ask);
+        // A position remembered from the last visit is refreshed quietly.
+        if (fromLastVisit) _locate(request: false);
       }
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('Cabang: load failed: $e');
       if (mounted) {
         setState(() {
           _loading = false;
           _failed = true;
+          _failure = e is ApiException ? e.displayMessage : null;
         });
       }
     }
@@ -115,6 +163,7 @@ class _BranchPageState extends State<BranchPage> {
 
   @override
   void dispose() {
+    _searchDelay?.cancel();
     _search.dispose();
     super.dispose();
   }
@@ -149,9 +198,9 @@ class _BranchPageState extends State<BranchPage> {
                 ),
                 const SizedBox(height: 24),
                 if (_branches.any((b) => b.distanceKm != null)) ...[
-                  const Text(
-                    'Jarak contoh',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  Text(
+                    BackendConfig.enabled ? 'Jarak' : 'Jarak contoh',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   Wrap(
                     spacing: 8,
@@ -214,6 +263,7 @@ class _BranchPageState extends State<BranchPage> {
         _radius = radius;
         _service = service;
       });
+      _searchSoon(now: true);
     }
   }
 
@@ -251,7 +301,10 @@ class _BranchPageState extends State<BranchPage> {
                 Expanded(
                   child: TextField(
                     controller: _search,
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (_) {
+                      setState(() {});
+                      _searchSoon();
+                    },
                     textInputAction: TextInputAction.search,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
@@ -281,7 +334,10 @@ class _BranchPageState extends State<BranchPage> {
                           : IconButton(
                               tooltip: 'Hapus pencarian',
                               icon: const Icon(Icons.close, size: 18),
-                              onPressed: () => setState(_search.clear),
+                              onPressed: () {
+                                setState(_search.clear);
+                                _searchSoon(now: true);
+                              },
                             ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -294,22 +350,26 @@ class _BranchPageState extends State<BranchPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Filter cabang',
-                  onPressed: _filter,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primarySoft,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // The filter stays in the demo only: with real data the page shows the three
+                // nearest outlets and the search box finds any other.
+                if (!BackendConfig.enabled) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Filter cabang',
+                    onPressed: _filter,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primarySoft,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: Image.asset(
+                      'assets/icons/branch_filter.png',
+                      width: 20,
+                      height: 20,
                     ),
                   ),
-                  icon: Image.asset(
-                    'assets/icons/branch_filter.png',
-                    width: 20,
-                    height: 20,
-                  ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 16),
@@ -332,16 +392,20 @@ class _BranchPageState extends State<BranchPage> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => setState(() {
-                        _radius = null;
-                        _service = null;
-                      }),
+                      onPressed: () {
+                        setState(() {
+                          _radius = null;
+                          _service = null;
+                        });
+                        _searchSoon(now: true);
+                      },
                       child: const Text('Reset'),
                     ),
                   ],
                 ),
               ),
-            if (_locating && !_loading)
+            // Not while the nearest outlets are already on screen (quiet position refresh).
+            if (_locating && !_loading && !_located)
               const Padding(
                 padding: EdgeInsets.only(bottom: 12),
                 child: Text(
@@ -391,6 +455,18 @@ class _BranchPageState extends State<BranchPage> {
                 child: Column(
                   children: [
                     const Text('Cabang belum dapat ditampilkan'),
+                    if (_failure != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _failure!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
                     TextButton(
                       onPressed: _load,
                       child: const Text('Coba Lagi'),
@@ -412,25 +488,29 @@ class _BranchPageState extends State<BranchPage> {
                       style: TextStyle(fontSize: 13),
                     ),
                     TextButton(
-                      onPressed: () => setState(() {
-                        _search.clear();
-                        _radius = null;
-                        _service = null;
-                      }),
+                      onPressed: () {
+                        setState(() {
+                          _search.clear();
+                          _radius = null;
+                          _service = null;
+                        });
+                        _searchSoon(now: true);
+                      },
                       child: const Text('Reset pencarian'),
                     ),
                   ],
                 ),
               )
             else
-              for (final (index, b) in visible.indexed) ...[
+              for (final (index, b)
+                  in (showNearest ? visible.take(3).toList() : visible)
+                      .indexed) ...[
                 if (showNearest && index == 0)
                   _sectionTitle(
                     visible.length < 3
                         ? 'Cabang Terdekat'
                         : '3 Cabang Terdekat',
                   ),
-                if (showNearest && index == 3) _sectionTitle('Cabang Lainnya'),
                 PhaseOneCard(
                   onTap: () => context.push(AppRoutes.branchDetail, extra: b),
                   child: Row(

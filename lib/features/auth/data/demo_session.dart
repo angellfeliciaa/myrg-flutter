@@ -5,12 +5,16 @@ class DemoContact {
     this.email = 'estherhoward@gmail.com',
     this.phone = '+6287860709553',
     this.isFixture = true,
+    this.avatarBytes,
     this.avatarUrl,
     this.birthDate,
   });
   final String email;
   final String phone;
   final bool isFixture;
+
+  /// Demo mode: the photo picked on Edit Akun, kept for this session only.
+  final Uint8List? avatarBytes;
 
   /// Backend mode only: profile photo (GET /me avatarUrl) and birth date (yyyy-MM-dd).
   final String? avatarUrl;
@@ -36,6 +40,20 @@ abstract final class DemoSession {
       isFixture: false,
       avatarUrl: avatarUrl,
       birthDate: birthDate,
+    );
+  }
+
+  /// Local preview only: never submits identity changes to RG.
+  static void updateProfile({
+    required String email,
+    required String phone,
+    required Uint8List? avatarBytes,
+  }) {
+    contact.value = DemoContact(
+      email: email,
+      phone: phone,
+      isFixture: contact.value.isFixture,
+      avatarBytes: avatarBytes,
     );
   }
 

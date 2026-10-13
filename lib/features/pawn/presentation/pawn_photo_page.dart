@@ -22,12 +22,16 @@ class PawnPhotoPage extends StatefulWidget {
   const PawnPhotoPage({
     required this.formId,
     this.productName,
+    this.estimate,
     this.retakeLabels = const [],
     this.pollInterval = const Duration(seconds: 3),
     super.key,
   });
   final String formId;
   final String? productName;
+
+  /// The range from the device check ("Rp 1.600.000 – Rp 2.350.000"), shown above the choices.
+  final String? estimate;
   final List<String> retakeLabels;
   final Duration pollInterval;
   @override
@@ -198,6 +202,22 @@ class _PawnPhotoPageState extends State<PawnPhotoPage>
             'No. pengajuan ${widget.formId}',
             style: const TextStyle(color: AppColors.textSecondary),
           ),
+          if (widget.estimate != null) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'Estimasi pinjaman dari pemeriksaan perangkat',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              widget.estimate!,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           if (widget.retakeLabels.isNotEmpty) ...[
             FlowInfo(

@@ -345,7 +345,10 @@ class _HomePageState extends State<HomePage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(24, 8, 0, 0),
-                  child: _PageDots(current: _transactionPage, count: 2),
+                  child: _PageDots(
+                    current: _transactionPage,
+                    count: transactionCards.length,
+                  ),
                 ),
               ),
               SliverPadding(

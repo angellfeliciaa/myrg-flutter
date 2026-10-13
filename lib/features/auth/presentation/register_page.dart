@@ -36,6 +36,35 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
+  late final _controllers = [
+    _fullNameController,
+    _birthDateController,
+    _phoneController,
+    _emailController,
+    _referralController,
+    _passwordController,
+    _passwordConfirmController,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in _controllers) {
+      controller.addListener(_recheckAfterSubmit);
+    }
+  }
+
+  /// Once "Daftar" has shown the errors, any change to a field checks the form again. Typing
+  /// already did this; text that arrives another way (paste, autofill) did not, so "wajib
+  /// diisi" stayed under a filled-in field.
+  void _recheckAfterSubmit() {
+    if (!_hasSubmitted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _formKey.currentState?.validate();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
   final _phoneFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
   final _referralFocusNode = FocusNode();
@@ -78,7 +107,10 @@ class _RegisterPageState extends State<RegisterPage> {
       _selectedBirthDate = selectedDate;
       _birthDateController.text = DateFormat('dd/MM/yyyy').format(selectedDate);
     });
-    _formKey.currentState?.validate();
+    // Only once "Daftar" was pressed: checking the whole form here marked the still-empty
+    // phone and password fields as "wajib diisi" right after picking a date, and those marks
+    // then stayed even when the fields were filled in.
+    if (_hasSubmitted) _formKey.currentState?.validate();
     _phoneFocusNode.requestFocus();
   }
 

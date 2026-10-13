@@ -16,6 +16,7 @@ import '../../features/home/presentation/home_page.dart';
 import '../../features/onboarding/presentation/onboarding_page.dart';
 import '../../features/onboarding/presentation/splash_page.dart';
 import '../../features/profile/presentation/account_page.dart';
+import '../../features/profile/presentation/edit_account_page.dart';
 import '../../features/activity/presentation/notifications_page.dart';
 import '../../features/pawn/presentation/pawn_page.dart';
 import '../../features/pawn/models/pawn_submission.dart';
@@ -29,7 +30,6 @@ import '../../features/branch/data/branch_repository.dart';
 import '../../features/profile/presentation/security_page.dart';
 import '../../features/profile/presentation/change_password_page.dart';
 import '../../features/profile/presentation/change_pin_page.dart';
-import '../../features/profile/presentation/edit_profile_page.dart';
 
 abstract final class AppRoutes {
   static const splash = '/';
@@ -44,6 +44,7 @@ abstract final class AppRoutes {
   static const activity = '/activity';
   static const activityDetail = '/activity/detail';
   static const account = '/account';
+  static const editAccount = '/account/edit';
   static const pawn = '/pawn';
   static const notifications = '/notifications';
   static const support = '/support';
@@ -53,7 +54,6 @@ abstract final class AppRoutes {
   static const security = '/account/security';
   static const changePassword = '/account/security/password';
   static const changePin = '/account/security/pin';
-  static const editProfile = '/account/profile';
 }
 
 abstract final class AppRouter {
@@ -113,6 +113,10 @@ abstract final class AppRouter {
       ),
       GoRoute(path: AppRoutes.account, builder: (_, _) => const AccountPage()),
       GoRoute(
+        path: AppRoutes.editAccount,
+        builder: (_, _) => const EditAccountPage(),
+      ),
+      GoRoute(
         path: AppRoutes.security,
         builder: (_, _) => const SecurityPage(),
       ),
@@ -123,10 +127,6 @@ abstract final class AppRouter {
       GoRoute(
         path: AppRoutes.changePin,
         builder: (_, _) => const ChangePinPage(),
-      ),
-      GoRoute(
-        path: AppRoutes.editProfile,
-        builder: (_, _) => const EditProfilePage(),
       ),
       GoRoute(path: AppRoutes.branches, builder: (_, _) => const BranchPage()),
       GoRoute(

@@ -35,6 +35,8 @@ class MemberProfile {
     this.nextTier,
     this.benefits = const [],
     this.membershipReady = true,
+    this.pointsValidUntil,
+    this.benefitsActive = false,
     int? xp,
   }) : _xp = xp;
   final String name;
@@ -51,6 +53,27 @@ class MemberProfile {
   final bool bankVerified;
   final List<String> benefits;
   final bool membershipReady;
+  final DateTime? pointsValidUntil;
+  final bool benefitsActive;
+  MemberProfile withName(String value) => MemberProfile(
+    name: value,
+    number: number,
+    tier: tier,
+    points: points,
+    levelStart: levelStart,
+    levelTarget: levelTarget,
+    balance: balance,
+    voucherCount: voucherCount,
+    hasPawned: hasPawned,
+    identityVerified: identityVerified,
+    bankVerified: bankVerified,
+    nextTier: nextTier,
+    benefits: benefits,
+    membershipReady: membershipReady,
+    pointsValidUntil: pointsValidUntil,
+    benefitsActive: benefitsActive,
+    xp: _xp,
+  );
 
   /// Tier progress (backend `xp`). Demo profiles have none: their points double as progress.
   final int? _xp;

@@ -56,14 +56,16 @@ abstract final class DeviceLocation {
       if (permission == LocationPermission.denied) {
         return const LocationResult.failed(LocationProblem.denied);
       }
-      // City-block accuracy is enough to rank outlets and is faster than a GPS fix. The last
-      // known position can be days old (another city), so it is only the fallback.
+      // High accuracy on purpose: lower levels ask Android for network-based positioning only
+      // (Wi-Fi / cell towers) and never switch the GPS on, so a phone without such a fix
+      // (and every emulator) gets no position at all. The last known position can be days
+      // old (another city), so it is only the fallback.
       Position? position;
       try {
         position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 8),
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
           ),
         );
       } catch (_) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -58,10 +59,12 @@ abstract final class MemberApi {
   );
 
   /// Ganti Foto (POST /me/avatar, multipart field "photo": jpg/png/webp, max 2 MB).
-  static Future<void> uploadAvatar(String filePath) async => _apply(
+  static Future<void> uploadAvatar(Uint8List bytes) async => _apply(
     await MyrgApi.post(
       '/me/avatar',
-      body: FormData.fromMap({'photo': await MultipartFile.fromFile(filePath)}),
+      body: FormData.fromMap({
+        'photo': MultipartFile.fromBytes(bytes, filename: 'avatar.jpg'),
+      }),
     ),
   );
 
@@ -122,6 +125,9 @@ abstract final class MemberApi {
         identityVerified: c['identityVerified'] == true,
         bankVerified: c['bankVerified'] == true,
         membershipReady: c['membershipReady'] == true,
+        // Account page (member card): benefits of the tier, and when the points run out.
+        benefitsActive: (c['benefits'] as List? ?? const []).isNotEmpty,
+        pointsValidUntil: DateTime.tryParse('${c['pointsValidUntil'] ?? ''}'),
         benefits: [for (final b in (c['benefits'] as List? ?? const [])) '$b'],
       );
       _cardAt = DateTime.now();

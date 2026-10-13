@@ -1,4 +1,3 @@
-import '../../../core/network/backend_config.dart';
 import '../../../core/network/myrg_api.dart';
 import '../models/branch.dart';
 
@@ -6,7 +5,6 @@ import '../models/branch.dart';
 /// or schedules).
 class BranchRepository {
   const BranchRepository();
-  static (DateTime, List<Branch>)? _cache;
   static const fixtures = [
     Branch(
       id: 'tebet',
@@ -28,49 +26,53 @@ class BranchRepository {
     ),
   ];
 
-  static (DateTime, String, List<Branch>)? _nearCache;
+  static final _found = <String, (DateTime, List<Branch>)>{};
 
-  /// Outlets with distanceKm from the phone's position, nearest first (the backend measures
-  /// against Raja Gadai's outlet coordinates; outlets without coordinates come last).
-  Future<List<Branch>> loadNear(double lat, double lng) async {
+  /// How many outlets one request asks for. Raja Gadai has ~700; the page shows the nearest
+  /// three and a short "others" list, and the search box asks the backend for anything else.
+  static const pageSize = 30;
+
+  /// Backend mode: outlets matching [q], nearest first when the phone's position is known
+  /// (the backend measures against Raja Gadai's outlet coordinates), within [radiusKm] if set.
+  Future<List<Branch>> find({
+    double? lat,
+    double? lng,
+    String q = '',
+    double? radiusKm,
+  }) async {
+    final located = lat != null && lng != null;
     // ~100 m grid: walking around a room does not download the list again.
-    final key = '${lat.toStringAsFixed(3)},${lng.toStringAsFixed(3)}';
-    final cached = _nearCache;
+    final key = [
+      if (located) '${lat.toStringAsFixed(3)},${lng.toStringAsFixed(3)}',
+      q.toLowerCase(),
+      '${radiusKm ?? ''}',
+    ].join('|');
+    final cached = _found[key];
     if (cached != null &&
-        cached.$2 == key &&
         DateTime.now().difference(cached.$1) < const Duration(minutes: 10)) {
-      return cached.$3;
+      return cached.$2;
     }
     final data = await MyrgApi.get(
       '/branches',
-      query: {'lat': lat, 'lng': lng},
+      query: <String, dynamic>{
+        if (located) ...{'lat': lat, 'lng': lng},
+        if (located && radiusKm != null) 'radius': radiusKm,
+        if (q.isNotEmpty) 'q': q,
+        'limit': pageSize,
+      },
       auth: false,
     );
     final branches = [
       for (final b in data as List? ?? const [])
         if (b is Map) Branch.fromApi(Map<String, dynamic>.from(b)),
     ];
-    _nearCache = (DateTime.now(), key, branches);
+    if (_found.length > 40) _found.clear(); // typed searches must not pile up
+    _found[key] = (DateTime.now(), branches);
     return branches;
   }
 
-  /// All outlets, without distances (used until the phone's position is known).
+  /// Demo mode: the Figma fixtures. (Backend mode uses [find].)
   Future<List<Branch>> load() async {
-    if (BackendConfig.enabled) {
-      // Outlets, hours and services rarely change: one download per 10 minutes is enough.
-      final cached = _cache;
-      if (cached != null &&
-          DateTime.now().difference(cached.$1) < const Duration(minutes: 10)) {
-        return cached.$2;
-      }
-      final data = await MyrgApi.get('/branches', auth: false);
-      final branches = [
-        for (final b in data as List? ?? const [])
-          if (b is Map) Branch.fromApi(Map<String, dynamic>.from(b)),
-      ];
-      _cache = (DateTime.now(), branches);
-      return branches;
-    }
     await Future<void>.delayed(const Duration(milliseconds: 350));
     return fixtures;
   }

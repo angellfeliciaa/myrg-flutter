@@ -155,7 +155,10 @@ class _SupportPageState extends State<SupportPage> {
             const SizedBox(height: 16),
           ],
           AppButton(
-            label: 'Hubungkan ke Chat RG',
+            // No live chat yet in backend mode: the banding is recorded for CS to follow up.
+            label: BackendConfig.enabled
+                ? 'Kirim Banding'
+                : 'Hubungkan ke Chat RG',
             isLoading: _loading,
             onPressed: _start,
           ),
