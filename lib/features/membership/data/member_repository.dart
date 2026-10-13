@@ -3,6 +3,10 @@ import '../models/member_profile.dart';
 
 /// Preview values. Production must hydrate this from the authenticated RG member.
 abstract final class MemberRepository {
+  static void updateDemoName(String name) {
+    profile.value = profile.value.withName(name);
+  }
+
   static void resetForRegistration(String name) {
     // A register result does not prove identity/bank verification. Hydrate after OTP.
     profile.value = MemberProfile(
@@ -22,7 +26,7 @@ abstract final class MemberRepository {
   }
 
   static final profile = ValueNotifier<MemberProfile>(
-    const MemberProfile(
+    MemberProfile(
       name: 'Esther Howard',
       number: 'RG00077123',
       tier: MemberTier.gold,
@@ -35,6 +39,8 @@ abstract final class MemberRepository {
       hasPawned: true,
       identityVerified: true,
       bankVerified: true,
+      pointsValidUntil: DateTime(2026, 12, 31),
+      benefitsActive: true,
       benefits: [
         'Promo khusus member',
         'Voucher biaya layanan',

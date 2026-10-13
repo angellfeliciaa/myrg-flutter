@@ -15,6 +15,7 @@ import '../../features/home/presentation/home_page.dart';
 import '../../features/onboarding/presentation/onboarding_page.dart';
 import '../../features/onboarding/presentation/splash_page.dart';
 import '../../features/profile/presentation/account_page.dart';
+import '../../features/profile/presentation/edit_account_page.dart';
 import '../../features/activity/presentation/notifications_page.dart';
 import '../../features/pawn/presentation/pawn_page.dart';
 import '../../features/pawn/models/pawn_submission.dart';
@@ -41,6 +42,7 @@ abstract final class AppRoutes {
   static const activity = '/activity';
   static const activityDetail = '/activity/detail';
   static const account = '/account';
+  static const editAccount = '/account/edit';
   static const pawn = '/pawn';
   static const notifications = '/notifications';
   static const support = '/support';
@@ -107,6 +109,10 @@ abstract final class AppRouter {
         builder: (context, state) => const ActivityPage(),
       ),
       GoRoute(path: AppRoutes.account, builder: (_, _) => const AccountPage()),
+      GoRoute(
+        path: AppRoutes.editAccount,
+        builder: (_, _) => const EditAccountPage(),
+      ),
       GoRoute(
         path: AppRoutes.security,
         builder: (_, _) => const SecurityPage(),

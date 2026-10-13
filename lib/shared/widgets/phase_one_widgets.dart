@@ -7,11 +7,19 @@ class PhaseOneScaffold extends StatelessWidget {
     required this.title,
     required this.child,
     this.footer,
+    this.headerPadding = const EdgeInsets.fromLTRB(20, 8, 24, 0),
+    this.headerTitleSpacing = 12,
+    this.backButtonPadding = const EdgeInsets.all(8),
+    this.footerPadding = const EdgeInsets.fromLTRB(24, 12, 24, 20),
     super.key,
   });
   final String title;
   final Widget child;
   final Widget? footer;
+  final EdgeInsetsGeometry headerPadding;
+  final double headerTitleSpacing;
+  final EdgeInsetsGeometry backButtonPadding;
+  final EdgeInsetsGeometry footerPadding;
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
     value: const SystemUiOverlayStyle(
@@ -26,12 +34,13 @@ class PhaseOneScaffold extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 24, 0),
+              padding: headerPadding,
               child: Row(
                 children: [
                   SizedBox.square(
                     dimension: 48,
                     child: IconButton(
+                      padding: backButtonPadding,
                       tooltip: 'Kembali',
                       onPressed: () => Navigator.maybePop(context),
                       icon: Container(
@@ -50,7 +59,7 @@ class PhaseOneScaffold extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: headerTitleSpacing),
                   Expanded(
                     child: Text(
                       title,
@@ -65,11 +74,7 @@ class PhaseOneScaffold extends StatelessWidget {
               ),
             ),
             Expanded(child: child),
-            if (footer != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-                child: footer,
-              ),
+            if (footer != null) Padding(padding: footerPadding, child: footer),
           ],
         ),
       ),

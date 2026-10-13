@@ -5,10 +5,12 @@ class DemoContact {
     this.email = 'estherhoward@gmail.com',
     this.phone = '+6287860709553',
     this.isFixture = true,
+    this.avatarBytes,
   });
   final String email;
   final String phone;
   final bool isFixture;
+  final Uint8List? avatarBytes;
 }
 
 /// In-memory FE simulation only. Never a credential store or production auth.
@@ -20,6 +22,20 @@ abstract final class DemoSession {
   static bool get hasDefaultPin => _pin == '123456';
   static void setContact({required String email, required String phone}) {
     contact.value = DemoContact(email: email, phone: phone, isFixture: false);
+  }
+
+  /// Local preview only: never submits identity changes to RG.
+  static void updateProfile({
+    required String email,
+    required String phone,
+    required Uint8List? avatarBytes,
+  }) {
+    contact.value = DemoContact(
+      email: email,
+      phone: phone,
+      isFixture: contact.value.isFixture,
+      avatarBytes: avatarBytes,
+    );
   }
 
   static void createPin(String pin) {

@@ -10,6 +10,8 @@ import '../../auth/data/demo_session.dart';
 import '../../home/presentation/widgets/home_bottom_navigation.dart';
 import '../../membership/data/member_repository.dart';
 import '../../membership/models/member_profile.dart';
+import 'widgets/profile_avatar.dart';
+import 'widgets/member_information_card.dart';
 
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
@@ -18,7 +20,6 @@ class AccountPage extends StatefulWidget {
 }
 
 class _AccountPageState extends State<AccountPage> {
-  bool _memberExpanded = false;
   void _qr(MemberProfile member) => showModalBottomSheet<void>(
     context: context,
     useSafeArea: true,
@@ -48,55 +49,6 @@ class _AccountPageState extends State<AccountPage> {
           PhaseOneButton(
             label: 'Tutup',
             onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    ),
-  );
-  void _profile(
-    MemberProfile member,
-    DemoContact contact,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    showDragHandle: true,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Informasi Profil',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            member.name,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            contact.email.isEmpty ? 'Email belum ditambahkan' : contact.email,
-          ),
-          const SizedBox(height: 8),
-          Text(contact.phone),
-          const SizedBox(height: 16),
-          const Text(
-            'Edit nama, foto, nomor telepon, dan email masuk fase 2. Ganti password sudah tersedia di fase 1.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 24),
-          PhaseOneButton(
-            label: 'Ganti Password',
-            onPressed: () {
-              Navigator.pop(context);
-              this.context.push(AppRoutes.changePassword);
-            },
           ),
         ],
       ),
@@ -186,39 +138,11 @@ class _AccountPageState extends State<AccountPage> {
                           padding: const EdgeInsets.all(20),
                           child: Row(
                             children: [
-                              if (contact.isFixture)
-                                ClipOval(
-                                  child: SizedBox.square(
-                                    dimension: 64,
-                                    child: OverflowBox(
-                                      alignment: Alignment.topCenter,
-                                      maxWidth: 64,
-                                      maxHeight: 89.2,
-                                      child: Image.asset(
-                                        'assets/images/profile_avatar.png',
-                                        width: 64,
-                                        height: 89.2,
-                                        fit: BoxFit.fill,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              else
-                                CircleAvatar(
-                                  radius: 32,
-                                  backgroundColor: AppColors.primarySoft,
-                                  child: Text(
-                                    member.name.isEmpty
-                                        ? 'RG'
-                                        : member.name
-                                              .substring(0, 1)
-                                              .toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
+                              ProfileAvatar(
+                                name: member.name,
+                                isFixture: contact.isFixture,
+                                bytes: contact.avatarBytes,
+                              ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
@@ -259,8 +183,9 @@ class _AccountPageState extends State<AccountPage> {
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Informasi profil',
-                                onPressed: () => _profile(member, contact),
+                                tooltip: 'Edit profil',
+                                onPressed: () =>
+                                    context.push(AppRoutes.editAccount),
                                 icon: Image.asset(
                                   'assets/icons/account_edit.png',
                                   width: 16,
@@ -335,9 +260,11 @@ class _AccountPageState extends State<AccountPage> {
                                                   BorderRadius.circular(24),
                                             ),
                                             child: Text(
-                                              member.membershipReady
+                                              !member.membershipReady
+                                                  ? 'Verifikasi'
+                                                  : member.benefitsActive
                                                   ? 'Benefit aktif'
-                                                  : 'Verifikasi',
+                                                  : 'Belum aktif',
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: const TextStyle(
@@ -409,101 +336,9 @@ class _AccountPageState extends State<AccountPage> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Material(
-                          color: AppColors.secondarySoft,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            side: const BorderSide(color: AppColors.divider),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: () => setState(
-                              () => _memberExpanded = !_memberExpanded,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      'M',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Informasi Member',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Text(
-                                          'Nomor member, tier, dan benefit',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    _memberExpanded
-                                        ? Icons.keyboard_arrow_up
-                                        : Icons.keyboard_arrow_down,
-                                    color: AppColors.primary,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_memberExpanded)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: PhaseOneCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    member.membershipReady
-                                        ? '${member.tier.label} Member'
-                                        : 'Menunggu verifikasi',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  for (final benefit in member.benefits)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Text(
-                                        benefit,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        _heading('Informasi Member'),
+                        const SizedBox(height: 16),
+                        MemberInformationCard(member: member),
                         if (member.number.isNotEmpty)
                           TextButton.icon(
                             onPressed: () => _qr(member),

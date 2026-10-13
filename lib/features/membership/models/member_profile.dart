@@ -33,6 +33,8 @@ class MemberProfile {
     this.nextTier,
     this.benefits = const [],
     this.membershipReady = true,
+    this.pointsValidUntil,
+    this.benefitsActive = false,
   });
   final String name;
   final String number;
@@ -48,6 +50,26 @@ class MemberProfile {
   final bool bankVerified;
   final List<String> benefits;
   final bool membershipReady;
+  final DateTime? pointsValidUntil;
+  final bool benefitsActive;
+  MemberProfile withName(String value) => MemberProfile(
+    name: value,
+    number: number,
+    tier: tier,
+    points: points,
+    levelStart: levelStart,
+    levelTarget: levelTarget,
+    balance: balance,
+    voucherCount: voucherCount,
+    hasPawned: hasPawned,
+    identityVerified: identityVerified,
+    bankVerified: bankVerified,
+    nextTier: nextTier,
+    benefits: benefits,
+    membershipReady: membershipReady,
+    pointsValidUntil: pointsValidUntil,
+    benefitsActive: benefitsActive,
+  );
   double get progress => levelTarget <= levelStart
       ? 1
       : ((points - levelStart) / (levelTarget - levelStart)).clamp(0, 1);
