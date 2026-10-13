@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/location/device_location.dart';
+import '../../../core/network/backend_config.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/phase_one_widgets.dart';
 import '../data/branch_repository.dart';
@@ -19,10 +21,66 @@ class _BranchPageState extends State<BranchPage> {
   bool _loading = true, _failed = false;
   double? _radius;
   String? _service;
+
+  // Backend mode: the phone's position, for distances and "3 Cabang Terdekat".
+  bool _locating = false;
+  bool _located = false;
+  LocationProblem? _locationProblem;
+
+  /// The permission dialog appears on the first visit only; after a "no" the page shows a
+  /// card with a button instead of asking again on every open.
+  static bool _askedThisSession = false;
+
+  /// Where the phone was last time, so a refresh reloads with distances right away.
+  static LocationResult? _lastPosition;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  /// Adds distances once the position is known. The list is already on screen by then, so a
+  /// slow GPS fix or a refused permission never blocks it.
+  Future<void> _locate({required bool request}) async {
+    if (!BackendConfig.enabled || _locating) return;
+    setState(() => _locating = true);
+    final result = await DeviceLocation.current(request: request);
+    if (!mounted) return;
+    if (!result.ok) {
+      setState(() {
+        _locating = false;
+        _locationProblem = result.problem;
+      });
+      return;
+    }
+    _lastPosition = result;
+    try {
+      final branches = await widget.repository.loadNear(
+        result.latitude!,
+        result.longitude!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _branches = branches;
+        _located = true;
+        _locationProblem = null;
+      });
+    } catch (_) {
+      // Keep the list without distances.
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
+  Future<void> _fixLocation() async {
+    final problem = _locationProblem;
+    if (problem == LocationProblem.deniedForever ||
+        problem == LocationProblem.serviceOff) {
+      await DeviceLocation.openSettings(problem!);
+      return; // the member comes back and pulls to refresh
+    }
+    await _locate(request: true);
   }
 
   Future<void> _load() async {
@@ -31,12 +89,19 @@ class _BranchPageState extends State<BranchPage> {
       _failed = false;
     });
     try {
-      final branches = await widget.repository.load();
+      final known = BackendConfig.enabled ? _lastPosition : null;
+      final branches = known == null
+          ? await widget.repository.load()
+          : await widget.repository.loadNear(known.latitude!, known.longitude!);
       if (mounted) {
         setState(() {
           _branches = branches;
           _loading = false;
+          _located = known != null;
         });
+        final ask = !_askedThisSession;
+        _askedThisSession = true;
+        _locate(request: ask);
       }
     } catch (_) {
       if (mounted) {
@@ -53,6 +118,14 @@ class _BranchPageState extends State<BranchPage> {
     _search.dispose();
     super.dispose();
   }
+
+  Widget _sectionTitle(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    ),
+  );
 
   Future<void> _filter() async {
     var radius = _radius;
@@ -162,6 +235,9 @@ class _BranchPageState extends State<BranchPage> {
               b.distanceKm ?? double.infinity,
             ),
           );
+    // "3 Cabang Terdekat" only on the plain list: a search or filter is the member's own order.
+    final showNearest =
+        _located && query.isEmpty && _radius == null && _service == null;
     return PhaseOneScaffold(
       title: 'Cabang',
       child: RefreshIndicator(
@@ -265,6 +341,46 @@ class _BranchPageState extends State<BranchPage> {
                   ],
                 ),
               ),
+            if (_locating && !_loading)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: Text(
+                  'Mencari cabang terdekat...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            if (_locationProblem != null && !_loading && !_locating) ...[
+              PhaseOneCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(switch (_locationProblem!) {
+                      LocationProblem.serviceOff =>
+                        'Lokasi HP sedang mati. Nyalakan untuk melihat cabang terdekat.',
+                      LocationProblem.deniedForever =>
+                        'Izin lokasi ditolak. Izinkan lewat Pengaturan untuk melihat cabang terdekat.',
+                      LocationProblem.denied =>
+                        'Izinkan lokasi untuk melihat 3 cabang terdekat dan jaraknya.',
+                      LocationProblem.unavailable =>
+                        'Lokasi belum bisa dibaca. Coba lagi di tempat terbuka.',
+                    }, style: const TextStyle(fontSize: 13, height: 1.5)),
+                    TextButton(
+                      onPressed: _fixLocation,
+                      child: Text(
+                        _locationProblem == LocationProblem.deniedForever ||
+                                _locationProblem == LocationProblem.serviceOff
+                            ? 'Buka Pengaturan'
+                            : 'Aktifkan Lokasi',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             if (_loading)
               const Padding(
                 padding: EdgeInsets.all(32),
@@ -307,7 +423,14 @@ class _BranchPageState extends State<BranchPage> {
                 ),
               )
             else
-              for (final b in visible) ...[
+              for (final (index, b) in visible.indexed) ...[
+                if (showNearest && index == 0)
+                  _sectionTitle(
+                    visible.length < 3
+                        ? 'Cabang Terdekat'
+                        : '3 Cabang Terdekat',
+                  ),
+                if (showNearest && index == 3) _sectionTitle('Cabang Lainnya'),
                 PhaseOneCard(
                   onTap: () => context.push(AppRoutes.branchDetail, extra: b),
                   child: Row(
@@ -358,14 +481,15 @@ class _BranchPageState extends State<BranchPage> {
                 ),
                 const SizedBox(height: 16),
               ],
-            const Text(
-              'Pratinjau FE • Peta, jarak dan informasi cabang memakai data contoh, bukan lokasi GPS.',
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.4,
-                color: AppColors.textSecondary,
+            if (!BackendConfig.enabled)
+              const Text(
+                'Pratinjau FE • Peta, jarak dan informasi cabang memakai data contoh, bukan lokasi GPS.',
+                style: TextStyle(
+                  fontSize: 11,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
           ],
         ),
       ),

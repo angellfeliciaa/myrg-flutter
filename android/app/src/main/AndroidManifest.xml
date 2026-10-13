@@ -1,9 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Cabang terdekat: approximate position is enough to rank outlets; fine is used when given. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
     <application
         android:enableOnBackInvokedCallback="true"
-        android:label="myrg"
+        android:label="MyRG"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -28,8 +28,33 @@ class BranchRepository {
     ),
   ];
 
-  /// The app has no location permission yet, so distanceKm stays empty. Once a location
-  /// package is added, send lat/lng here: the backend then adds distanceKm and sorts nearest first.
+  static (DateTime, String, List<Branch>)? _nearCache;
+
+  /// Outlets with distanceKm from the phone's position, nearest first (the backend measures
+  /// against Raja Gadai's outlet coordinates; outlets without coordinates come last).
+  Future<List<Branch>> loadNear(double lat, double lng) async {
+    // ~100 m grid: walking around a room does not download the list again.
+    final key = '${lat.toStringAsFixed(3)},${lng.toStringAsFixed(3)}';
+    final cached = _nearCache;
+    if (cached != null &&
+        cached.$2 == key &&
+        DateTime.now().difference(cached.$1) < const Duration(minutes: 10)) {
+      return cached.$3;
+    }
+    final data = await MyrgApi.get(
+      '/branches',
+      query: {'lat': lat, 'lng': lng},
+      auth: false,
+    );
+    final branches = [
+      for (final b in data as List? ?? const [])
+        if (b is Map) Branch.fromApi(Map<String, dynamic>.from(b)),
+    ];
+    _nearCache = (DateTime.now(), key, branches);
+    return branches;
+  }
+
+  /// All outlets, without distances (used until the phone's position is known).
   Future<List<Branch>> load() async {
     if (BackendConfig.enabled) {
       // Outlets, hours and services rarely change: one download per 10 minutes is enough.

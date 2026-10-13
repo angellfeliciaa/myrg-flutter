@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/phase_one_widgets.dart';
 import '../../../shared/widgets/flow_widgets.dart';
+import '../../../core/network/backend_config.dart';
+import '../../payment/data/payment_repository.dart';
 import '../../payment/presentation/installment_input_page.dart';
+import '../../payment/presentation/payment_page.dart';
 import '../models/activity_transaction.dart';
 import 'pawn_document_page.dart';
 import 'widgets/pawn_item_summary.dart';
@@ -49,65 +52,67 @@ class PawnDetailPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Surat Bukti Gadai',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 16),
-          PhaseOneCard(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => PawnDocumentPage(transaction: transaction),
-              ),
+          if (!BackendConfig.enabled) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Surat Bukti Gadai',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
-            child: Row(
-              children: [
-                ClipRect(
-                  child: SizedBox(
-                    width: 30,
-                    height: 34,
-                    child: OverflowBox(
-                      maxWidth: 50.4,
-                      maxHeight: 50.2,
-                      child: Image.asset(
-                        'assets/icons/pawn_pdf.png',
-                        width: 50.4,
-                        height: 50.2,
-                        fit: BoxFit.fill,
+            const SizedBox(height: 16),
+            PhaseOneCard(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => PawnDocumentPage(transaction: transaction),
+                ),
+              ),
+              child: Row(
+                children: [
+                  ClipRect(
+                    child: SizedBox(
+                      width: 30,
+                      height: 34,
+                      child: OverflowBox(
+                        maxWidth: 50.4,
+                        maxHeight: 50.2,
+                        child: Image.asset(
+                          'assets/icons/pawn_pdf.png',
+                          width: 50.4,
+                          height: 50.2,
+                          fit: BoxFit.fill,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pawn.documentNumber ?? 'DEMO-SBG-${transaction.id}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Lihat pratinjau dokumen FE',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pawn.documentNumber ?? 'DEMO-SBG-${transaction.id}',
+                          style: const TextStyle(fontSize: 14),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Lihat pratinjau dokumen FE',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
-              ],
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 24),
           const Text(
             'Pilih Tindakan',
@@ -118,28 +123,36 @@ class PawnDetailPage extends StatelessWidget {
             'Perpanjang',
             'Perpanjang masa gadai & bayar bunga',
             'pawn_extend',
-            () => showPhaseTwoNotice(context, 'Perpanjang Gadai'),
-            phaseTwo: true,
+            BackendConfig.enabled
+                ? () => _pay(context, PaymentAction.extend)
+                : () => showPhaseTwoNotice(context, 'Perpanjang Gadai'),
+            phaseTwo: !BackendConfig.enabled,
           ),
           const SizedBox(height: 16),
-          _action(
-            'Cicil Pokok',
-            'Bayar sebagian pokok pinjaman',
-            'pawn_installment',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => InstallmentInputPage(transaction: transaction),
+          // Cicil pokok is not available at Raja Gadai yet: demo only.
+          if (!BackendConfig.enabled) ...[
+            _action(
+              'Cicil Pokok',
+              'Bayar sebagian pokok pinjaman',
+              'pawn_installment',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      InstallmentInputPage(transaction: transaction),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
           _action(
             'Tebus',
             'Lunasi & ambil kembali barang',
             'pawn_redeem',
-            () => showPhaseTwoNotice(context, 'Tebus Barang'),
-            phaseTwo: true,
+            BackendConfig.enabled
+                ? () => _pay(context, PaymentAction.redeem)
+                : () => showPhaseTwoNotice(context, 'Tebus Barang'),
+            phaseTwo: !BackendConfig.enabled,
           ),
           const SizedBox(height: 24),
           FlowSection(
@@ -174,19 +187,29 @@ class PawnDetailPage extends StatelessWidget {
             FlowInfo(
               '${pawn.freeStorageDays} hari pertama bebas biaya simpan sesuai ketentuan promo aktif.',
             ),
-          const SizedBox(height: 16),
-          const Text(
-            'Demo FE • Data tagihan dan dokumen adalah contoh. Aksi pembayaran masuk fase 2.',
-            style: TextStyle(
-              fontSize: 11,
-              height: 1.5,
-              color: AppColors.textSecondary,
+          if (!BackendConfig.enabled) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Demo FE • Data tagihan dan dokumen adalah contoh. Aksi pembayaran masuk fase 2.',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
+
+  /// Backend mode: Perpanjang / Tebus go to the real payment page.
+  void _pay(BuildContext context, PaymentAction action) => Navigator.push<void>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PaymentPage(transaction: transaction, action: action),
+    ),
+  );
 
   Widget _action(
     String title,

@@ -1,7 +1,26 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../core/network/backend_config.dart';
 import 'flow_widgets.dart';
+
+/// Pages the webview may open: https everywhere. A debug build may also open the MyRG backend
+/// it is connected to over plain http (the stand-in payment page of a local test backend).
+bool rgWebviewAllows(Uri uri) {
+  if (uri.host.isEmpty) return false;
+  if (uri.scheme == 'https') return true;
+  return kDebugMode &&
+      uri.scheme == 'http' &&
+      uri.host == Uri.parse(BackendConfig.baseUrl).host;
+}
+
+/// A local backend builds its links from APP_URL (often http://localhost:8000), which the
+/// emulator cannot open: debug builds point such links at the API host instead.
+Uri rgWebviewLocalFix(Uri uri) {
+  if (!kDebugMode || !{'localhost', '127.0.0.1'}.contains(uri.host)) return uri;
+  final api = Uri.parse(BackendConfig.baseUrl);
+  return uri.replace(scheme: api.scheme, host: api.host, port: api.port);
+}
 
 class RgWebviewPage extends StatefulWidget {
   const RgWebviewPage({required this.title, this.url, super.key});
@@ -19,7 +38,7 @@ class _RgWebviewPageState extends State<RgWebviewPage> {
   void initState() {
     super.initState();
     if (widget.url == null ||
-        widget.url!.scheme != 'https' ||
+        !rgWebviewAllows(widget.url!) ||
         kIsWeb ||
         ![
           TargetPlatform.android,
@@ -40,10 +59,12 @@ class _RgWebviewPageState extends State<RgWebviewPage> {
               setState(() => _failed = true);
             }
           },
-          onNavigationRequest: (request) =>
-              Uri.tryParse(request.url)?.scheme == 'https'
-              ? NavigationDecision.navigate
-              : NavigationDecision.prevent,
+          onNavigationRequest: (request) {
+            final target = Uri.tryParse(request.url);
+            return target != null && rgWebviewAllows(target)
+                ? NavigationDecision.navigate
+                : NavigationDecision.prevent;
+          },
         ),
       )
       ..loadRequest(widget.url!);
@@ -91,11 +112,9 @@ Future<void> openRgWebview(
   required String title,
   String? url,
 }) {
-  final candidate = Uri.tryParse(url ?? '');
-  final safeUrl =
-      candidate != null &&
-          candidate.scheme == 'https' &&
-          candidate.host.isNotEmpty
+  final parsed = Uri.tryParse(url ?? '');
+  final candidate = parsed == null ? null : rgWebviewLocalFix(parsed);
+  final safeUrl = candidate != null && rgWebviewAllows(candidate)
       ? candidate
       : null;
   return Navigator.of(context).push<void>(

@@ -49,5 +49,7 @@
 	<string>MyRG membutuhkan akses galeri untuk mengganti foto profil.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>MyRG membutuhkan kamera untuk mengambil foto profil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MyRG memakai lokasi untuk menampilkan cabang Raja Gadai terdekat.</string>
 </dict>
 </plist>

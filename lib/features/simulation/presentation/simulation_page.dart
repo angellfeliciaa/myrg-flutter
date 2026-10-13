@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/formatter.dart';
 import '../../../shared/widgets/app_button.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/backend_config.dart';
 import '../data/catalog_valuation_repository.dart';
 import '../data/valuation_repository.dart';
@@ -38,6 +39,7 @@ class _SimulationPageState extends State<SimulationPage> {
   List<ValuationModel> _models = [];
   bool _loading = false;
   bool _failed = false;
+  String? _errorMessage;
   int _request = 0;
   late final ValuationRepository _repository =
       widget.repository ??
@@ -61,6 +63,7 @@ class _SimulationPageState extends State<SimulationPage> {
     setState(() {
       _loading = true;
       _failed = false;
+      _errorMessage = null;
     });
     try {
       final categories = step == _Step.category
@@ -83,11 +86,13 @@ class _SimulationPageState extends State<SimulationPage> {
         if (result != null) _result = result;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted || request != _request) return;
       setState(() {
         _loading = false;
         _failed = true;
+        // Backend answers say why (e.g. today's taksiran limit is used up).
+        _errorMessage = e is ApiException ? e.displayMessage : null;
       });
     }
   }
@@ -294,7 +299,7 @@ class _SimulationPageState extends State<SimulationPage> {
                         if (_loading)
                           const _FeedbackState(loading: true)
                         else if (_failed)
-                          _FeedbackState(onRetry: _load)
+                          _FeedbackState(onRetry: _load, message: _errorMessage)
                         else
                           ...switch (_step) {
                             _Step.category => _categoryContent(),
@@ -486,7 +491,7 @@ class _SimulationPageState extends State<SimulationPage> {
   List<Widget> _modelContent() {
     final query = _modelSearch.text.trim().toLowerCase();
     final models = _models
-        .where((model) => model.name.toLowerCase().contains(query))
+        .where((model) => model.label.toLowerCase().contains(query))
         .toList();
     return [
       _search(_modelSearch, 'Cari model perangkat anda'),
@@ -502,7 +507,7 @@ class _SimulationPageState extends State<SimulationPage> {
       else
         _list(
           models
-              .map((model) => (model.name, () => _chooseModel(model)))
+              .map((model) => (model.label, () => _chooseModel(model)))
               .toList(),
         ),
     ];
@@ -644,11 +649,13 @@ class _SimulationPageState extends State<SimulationPage> {
           ),
         ),
       ),
-      const Padding(
-        padding: EdgeInsets.only(top: 12),
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
         child: Text(
-          'Simulasi FE • Data dan nominal contoh, bukan penawaran pinjaman.',
-          style: TextStyle(
+          BackendConfig.enabled
+              ? 'Estimasi awal, bukan penawaran pinjaman. Nilai akhir ditentukan setelah barang diperiksa Raja Gadai.'
+              : 'Simulasi FE • Data dan nominal contoh, bukan penawaran pinjaman.',
+          style: const TextStyle(
             fontSize: 11,
             height: 1.4,
             color: AppColors.textSecondary,
@@ -846,9 +853,12 @@ class _BrandLogo extends StatelessWidget {
 }
 
 class _FeedbackState extends StatelessWidget {
-  const _FeedbackState({this.loading = false, this.onRetry});
+  const _FeedbackState({this.loading = false, this.onRetry, this.message});
   final bool loading;
   final VoidCallback? onRetry;
+
+  /// Why it failed, when the backend said so.
+  final String? message;
   @override
   Widget build(BuildContext context) => _Surface(
     child: Padding(
@@ -870,8 +880,10 @@ class _FeedbackState extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             loading
-                ? 'Menggunakan data contoh untuk pratinjau FE.'
-                : 'Silakan coba kembali.',
+                ? (BackendConfig.enabled
+                      ? 'Mohon tunggu sebentar.'
+                      : 'Menggunakan data contoh untuk pratinjau FE.')
+                : message ?? 'Silakan coba kembali.',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 12,

@@ -23,10 +23,19 @@ class ValuationBrand {
 }
 
 class ValuationModel {
-  const ValuationModel(this.name, this.variant, {this.imageAsset});
+  const ValuationModel(
+    this.name,
+    this.variant, {
+    this.imageAsset,
+    this.listLabel,
+  });
   final String name;
   final String variant;
   final String? imageAsset;
+
+  /// Text in the model list when the name alone is not enough (same model, several variants).
+  final String? listLabel;
+  String get label => listLabel ?? name;
 }
 
 class ValuationResult {
