@@ -146,7 +146,7 @@ class HomeQuickActions extends StatelessWidget {
                           color: AppColors.textPrimary,
                           fontSize: 12,
                           height: 1.2,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],

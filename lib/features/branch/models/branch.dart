@@ -11,6 +11,8 @@ class Branch {
       'Pengambilan Barang',
     ],
     this.phone,
+    this.latitude,
+    this.longitude,
     this.todayLabel = '08:00 - 17:00 WIB',
     this.openingHours = const [
       ('Senin - Jumat', '08:00 - 17:00'),
@@ -34,6 +36,8 @@ class Branch {
       phone: (json['phone'] as String?)?.trim().isEmpty ?? true
           ? null
           : (json['phone'] as String).trim(),
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       todayLabel: '${json['todayLabel'] ?? '-'}',
       services: services is List ? [for (final s in services) '$s'] : const [],
       openingHours: week is List
@@ -49,6 +53,23 @@ class Branch {
   final double? distanceKm;
   final List<String> services;
   final String? phone;
+
+  /// Core RG coordinates; some outlets have none yet.
+  final double? latitude, longitude;
+  bool get hasLocation => latitude != null && longitude != null;
+
+  /// The outlet's pin in Google Maps (opens the Maps app when installed, else the browser).
+  Uri? get mapsUri => hasLocation
+      ? Uri.https('www.google.com', '/maps/search/', {
+          'api': '1',
+          'query': '$latitude,$longitude',
+        })
+      : null;
+
+  /// Opens the phone's dialer with the outlet's number filled in.
+  Uri? get dialUri => phone == null
+      ? null
+      : Uri(scheme: 'tel', path: phone!.replaceAll(RegExp(r'[^0-9+]'), ''));
   final String todayLabel;
   final List<(String, String)> openingHours;
   String get hours => todayLabel;

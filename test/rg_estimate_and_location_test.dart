@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myrg/core/location/device_location.dart';
+import 'package:myrg/features/branch/models/branch.dart';
 import 'package:myrg/features/simulation/data/catalog_valuation_repository.dart';
 import 'package:myrg/shared/widgets/rg_webview_page.dart';
 
@@ -156,5 +157,26 @@ void main() {
       rgWebviewLocalFix(Uri.parse('https://pay.rajagadai.id/x')).toString(),
       'https://pay.rajagadai.id/x',
     );
+  });
+
+  test('outlet links: Google Maps needs coordinates, the dialer a phone', () {
+    final full = Branch.fromApi({
+      'code': 'A1',
+      'name': 'RG Blok M',
+      'address': 'Jl. Melawai',
+      'phone': ' (021) 555-0101 ',
+      'latitude': -6.2441,
+      'longitude': 106.8006,
+    });
+    expect(
+      full.mapsUri.toString(),
+      'https://www.google.com/maps/search/?api=1&query=-6.2441%2C106.8006',
+    );
+    expect(full.dialUri.toString(), 'tel:0215550101');
+
+    final bare = Branch.fromApi({'code': 'A2', 'name': 'RG', 'phone': ''});
+    expect(bare.hasLocation, isFalse);
+    expect(bare.mapsUri, isNull);
+    expect(bare.dialUri, isNull);
   });
 }

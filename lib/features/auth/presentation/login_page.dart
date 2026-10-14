@@ -299,17 +299,19 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: Text(
-                                'Demo FE • Password awal: password123 • PIN awal: 123456',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textSecondary,
+                            // Demo credentials are only true in demo mode.
+                            if (!BackendConfig.enabled)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text(
+                                  'Demo FE • Password awal: password123 • PIN awal: 123456',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
                               ),
-                            ),
                             const SizedBox(height: 24),
                             const _DividerWithLabel(),
                             const SizedBox(height: 24),
