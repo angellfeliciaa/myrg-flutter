@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
 
 class FlowSection extends StatelessWidget {
@@ -57,33 +58,75 @@ class FlowInfo extends StatelessWidget {
 }
 
 class FlowValue extends StatelessWidget {
-  const FlowValue(this.label, this.value, {super.key});
+  const FlowValue(this.label, this.value, {this.copyText, super.key});
   final String label;
   final String value;
+
+  /// When set, tapping the row copies this text (e.g. the transaction number without "#").
+  final String? copyText;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
+  Widget build(BuildContext context) {
+    final valueText = Text(
+      value,
+      textAlign: TextAlign.end,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    );
+    final row = Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                // Beside the label, where there is room: next to the value it would squeeze a
+                // long number onto two lines.
+                if (copyText != null) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.copy_rounded,
+                    size: 15,
+                    color: AppColors.primary,
+                  ),
+                ],
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          const SizedBox(width: 12),
+          Flexible(
+            child: copyText == null
+                ? valueText
+                // A number to copy is never broken across lines: it shrinks a little instead
+                // on a narrow phone.
+                : FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: valueText,
+                  ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+    if (copyText == null) return row;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: copyText!));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text('$label disalin.')));
+      },
+      child: row,
+    );
+  }
 }

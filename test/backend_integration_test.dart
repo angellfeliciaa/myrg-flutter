@@ -142,7 +142,7 @@ void main() {
     expect(pawn.extensionEvents.first.label, 'Perpanjangan ke-1');
     expect(pawn.extensionEvents.first.date, contains('Rp 175.000'));
     expect(pawn.redeemedAt, isNotNull);
-    expect(pawn.redemptionMethod, 'Transfer / Virtual Account');
+    expect(pawn.redemptionMethod, 'Transfer / VA');
   });
 
   test('a backend outlet maps to Branch with admin hours and no distance', () {

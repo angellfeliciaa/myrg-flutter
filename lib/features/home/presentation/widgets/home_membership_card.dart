@@ -46,11 +46,12 @@ class HomeMembershipCard extends StatelessWidget {
     }
     final number = NumberFormat.decimalPattern('id');
     final isGold = member.tier == MemberTier.gold;
-    final ink = isGold ? AppColors.primary : member.tier.inkColor;
+    // The Home card is always the green design, whatever the tier; the badge names the tier.
+    const ink = AppColors.primary;
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
       decoration: BoxDecoration(
-        color: isGold ? const Color(0xFFAACE38) : member.tier.cardColor,
+        color: const Color(0xFFAACE38),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0x80F5F5F7)),
         boxShadow: const [

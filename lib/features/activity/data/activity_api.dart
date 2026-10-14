@@ -144,7 +144,9 @@ abstract final class ActivityApi {
 
   static String _paymentLabel(Object? type) =>
       switch ('${type ?? ''}'.toUpperCase()) {
-        'TRANSFER' || 'VA' || 'VIRTUAL_ACCOUNT' => 'Transfer / Virtual Account',
+        'TRANSFER' ||
+        'VA' ||
+        'VIRTUAL_ACCOUNT' => 'Transfer / VA', // one line in Informasi Gadai
         'CASH' || 'TUNAI' => 'Tunai di cabang',
         '' => '-',
         final other => other,

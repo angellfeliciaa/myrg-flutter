@@ -7,13 +7,23 @@ import '../../../core/network/backend_config.dart';
 import '../../payment/data/payment_repository.dart';
 import '../../payment/presentation/installment_input_page.dart';
 import '../../payment/presentation/payment_page.dart';
+import '../data/activity_api.dart';
 import '../models/activity_transaction.dart';
 import 'pawn_document_page.dart';
 import 'widgets/pawn_item_summary.dart';
 
-class PawnDetailPage extends StatelessWidget {
+class PawnDetailPage extends StatefulWidget {
   const PawnDetailPage({required this.transaction, super.key});
   final ActivityTransaction transaction;
+
+  @override
+  State<PawnDetailPage> createState() => _PawnDetailPageState();
+}
+
+class _PawnDetailPageState extends State<PawnDetailPage> {
+  /// Reloaded after Perpanjang / Tebus: the new history line and due date show on return.
+  late ActivityTransaction transaction = widget.transaction;
+
   String money(int value) =>
       'Rp ${NumberFormat.decimalPattern('id').format(value)}';
   @override
@@ -44,7 +54,11 @@ class PawnDetailPage extends StatelessWidget {
                 FlowValue('Pokok Pinjaman', money(pawn.principal)),
                 FlowValue('Biaya', money(pawn.fees)),
                 FlowValue('Cabang', pawn.branchName),
-                FlowValue('No. Transaksi', transaction.reference),
+                FlowValue(
+                  'No. Transaksi',
+                  transaction.reference,
+                  copyText: transaction.id,
+                ),
                 if (pawn.storageFee > 0)
                   FlowValue('Biaya simpan', money(pawn.storageFee)),
                 if (pawn.totalPayable != null)
@@ -176,10 +190,53 @@ class PawnDetailPage extends StatelessWidget {
             FlowSection(
               title: 'Riwayat perpanjangan',
               children: [
-                for (final event in pawn.extensionEvents)
-                  FlowValue(
-                    event.label,
-                    '${event.date}${event.reference == null ? '' : '\n${event.reference}'}',
+                // Same layout as the activity detail: one left-aligned block per extension, so
+                // the date and amount never break across a narrow right column.
+                for (final (i, event) in pawn.extensionEvents.indexed)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i == pawn.extensionEvents.length - 1 ? 0 : 16,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.event_repeat_rounded,
+                          color: AppColors.primary,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.label,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                event.date,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                              if (event.reference != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  event.reference!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -204,12 +261,21 @@ class PawnDetailPage extends StatelessWidget {
   }
 
   /// Backend mode: Perpanjang / Tebus go to the real payment page.
-  void _pay(BuildContext context, PaymentAction action) => Navigator.push<void>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => PaymentPage(transaction: transaction, action: action),
-    ),
-  );
+  Future<void> _pay(BuildContext context, PaymentAction action) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PaymentPage(transaction: transaction, action: action),
+      ),
+    );
+    // Back from the payment: show what Core RG has now (extension line, due date, redeemed).
+    try {
+      final fresh = await ActivityApi.detail(transaction.id);
+      if (mounted && fresh.pawn != null) setState(() => transaction = fresh);
+    } catch (_) {
+      // Keep what is shown; reopening the page loads it again.
+    }
+  }
 
   Widget _action(
     String title,
@@ -221,7 +287,24 @@ class PawnDetailPage extends StatelessWidget {
     onTap: onTap,
     child: Row(
       children: [
-        Image.asset('assets/icons/$asset.png', width: 40, height: 40),
+        // pawn_redeem.png from the design export is an empty 1x1 image: Tebus is drawn as in
+        // the design (green check on a light lime circle) until the real one is exported.
+        if (asset == 'pawn_redeem')
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.secondarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: AppColors.success,
+              size: 28,
+            ),
+          )
+        else
+          Image.asset('assets/icons/$asset.png', width: 40, height: 40),
         const SizedBox(width: 8),
         Expanded(
           child: Column(

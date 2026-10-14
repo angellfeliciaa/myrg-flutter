@@ -204,7 +204,7 @@ class _AccountPageState extends State<AccountPage> {
                         Container(
                           clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: _memberCardColor(member),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Stack(
@@ -212,11 +212,26 @@ class _AccountPageState extends State<AccountPage> {
                               Positioned(
                                 top: -52,
                                 right: -50,
-                                child: Image.asset(
-                                  'assets/images/account_member_glow.png',
-                                  width: 184,
-                                  height: 184,
-                                ),
+                                // The glow image is drawn on purple: other tier colours get
+                                // the same circle as a light overlay instead.
+                                child:
+                                    _memberCardColor(member) ==
+                                        AppColors.primary
+                                    ? Image.asset(
+                                        'assets/images/account_member_glow.png',
+                                        width: 184,
+                                        height: 184,
+                                      )
+                                    : Container(
+                                        width: 184,
+                                        height: 184,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withValues(
+                                            alpha: .12,
+                                          ),
+                                        ),
+                                      ),
                               ),
                               Padding(
                                 padding: const EdgeInsets.all(18),
@@ -233,9 +248,9 @@ class _AccountPageState extends State<AccountPage> {
                                             height: 24,
                                           )
                                         else
-                                          const Icon(
+                                          Icon(
                                             Icons.workspace_premium_outlined,
-                                            color: Colors.white,
+                                            color: _memberCardInk(member),
                                             size: 24,
                                           ),
                                         const SizedBox(width: 8),
@@ -246,10 +261,10 @@ class _AccountPageState extends State<AccountPage> {
                                                 : 'Member belum aktif',
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700,
-                                              color: Colors.white,
+                                              color: _memberCardInk(member),
                                             ),
                                           ),
                                         ),
@@ -283,11 +298,13 @@ class _AccountPageState extends State<AccountPage> {
                                       ],
                                     ),
                                     const SizedBox(height: 16),
-                                    const Text(
+                                    Text(
                                       'Nomor Member',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Colors.white70,
+                                        color: _memberCardInk(
+                                          member,
+                                        ).withValues(alpha: .7),
                                       ),
                                     ),
                                     const SizedBox(height: 4),
@@ -295,10 +312,10 @@ class _AccountPageState extends State<AccountPage> {
                                       member.number.isEmpty
                                           ? 'Menunggu verifikasi'
                                           : member.number,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: _memberCardInk(member),
                                       ),
                                     ),
                                     const SizedBox(height: 14),
@@ -313,10 +330,10 @@ class _AccountPageState extends State<AccountPage> {
                                         Expanded(
                                           child: Text(
                                             '${NumberFormat.decimalPattern('id').format(member.points)} Poin ErGe',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w700,
-                                              color: Colors.white,
+                                              color: _memberCardInk(member),
                                             ),
                                           ),
                                         ),
@@ -330,7 +347,12 @@ class _AccountPageState extends State<AccountPage> {
                                             ? member.progress
                                             : 0,
                                         minHeight: 6,
-                                        color: AppColors.secondary,
+                                        // Lime on the green Gold card would not show.
+                                        color:
+                                            _memberCardColor(member) ==
+                                                MemberTier.gold.cardColor
+                                            ? AppColors.primary
+                                            : AppColors.secondary,
                                         backgroundColor: Colors.white24,
                                       ),
                                     ),
@@ -459,3 +481,11 @@ class _AccountPageState extends State<AccountPage> {
     ),
   );
 }
+
+/// Akun member card: coloured by tier (Bronze brown, Silver grey, Gold green, Platinum purple);
+/// purple while the membership is not active yet.
+Color _memberCardColor(MemberProfile member) =>
+    member.membershipReady ? member.tier.cardColor : AppColors.primary;
+
+Color _memberCardInk(MemberProfile member) =>
+    member.membershipReady ? member.tier.inkColor : Colors.white;
