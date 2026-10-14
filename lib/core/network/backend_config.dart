@@ -9,6 +9,11 @@ import 'rg_integration.dart';
 abstract final class BackendConfig {
   static bool get enabled => !RgIntegration.preview;
 
+  /// Demo / tester builds: the server answers every OTP with this fixed code
+  /// (MEMBER_OTP_TEST_CODE), so the OTP page says so. Empty in a real build.
+  ///   --dart-define=MYRG_DEMO_OTP=000000
+  static const demoOtp = String.fromEnvironment('MYRG_DEMO_OTP');
+
   /// Android emulator reaches the laptop's `php artisan serve` at 10.0.2.2.
   static const baseUrl = String.fromEnvironment(
     'MYRG_API_URL',

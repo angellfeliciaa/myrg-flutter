@@ -28,19 +28,21 @@ class MyRgApp extends StatelessWidget {
   }
 }
 
-/// The screens are designed for a phone. On a tablet they would stretch over the whole width
-/// (wide gaps, very long lines), so there the app keeps a phone-like width in the middle of the
-/// screen. Dialogs, sheets and snack bars live inside it too. Phones are not affected.
+/// The screens are designed for a phone in portrait. Phones and tablets held upright (up to
+/// about 840 dp wide) use the whole width, and the screens adapt (fixed-height menus, more photo
+/// columns). Only a very wide screen, such as a tablet held sideways, gets a centred column so the
+/// banner and cards do not stretch out of shape. Dialogs, sheets and snack bars live inside it too.
 class _PhoneWidth extends StatelessWidget {
   const _PhoneWidth({required this.child});
   final Widget child;
 
-  static const maxWidth = 600.0;
+  static const fullWidthUpTo = 840.0;
+  static const maxWidth = 720.0;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    if (media.size.width <= maxWidth) return child;
+    if (media.size.width <= fullWidthUpTo) return child;
     return ColoredBox(
       color: AppColors.surfaceSoft,
       child: Center(

@@ -389,7 +389,8 @@ class _PawnPhotoPageState extends State<PawnPhotoPage>
     ),
     const SizedBox(height: 16),
     GridView.count(
-      crossAxisCount: 2,
+      // Two columns on a phone; on a tablet two columns make each box very tall.
+      crossAxisCount: MediaQuery.sizeOf(context).width >= 600 ? 4 : 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,

@@ -256,17 +256,27 @@ class _OtpPageState extends State<OtpPage> {
                           seconds: _resendSeconds,
                           onResend: _resendOtp,
                         ),
-                        const Padding(
-                          padding: EdgeInsets.only(top: 16),
-                          child: Text(
-                            'Pratinjau FE • Kode OTP demo: 123456',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textSecondary,
+                        if (!BackendConfig.enabled)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 16),
+                            child: Text(
+                              'Pratinjau FE • Kode OTP demo: 123456',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
+                          )
+                        else if (BackendConfig.demoOtp.isNotEmpty)
+                          _DemoOtpNote(
+                            code: BackendConfig.demoOtp,
+                            onUse: () {
+                              _otpController.text = BackendConfig.demoOtp;
+                              setState(() => _errorText = null);
+                              _confirmOtp();
+                            },
                           ),
-                        ),
                         const Spacer(),
                         Padding(
                           padding: const EdgeInsets.only(top: 32, bottom: 12),
@@ -286,6 +296,77 @@ class _OtpPageState extends State<OtpPage> {
       ),
     );
   }
+}
+
+/// Tester build only: the code is fixed on the demo server and nothing is sent to the phone.
+class _DemoOtpNote extends StatelessWidget {
+  const _DemoOtpNote({required this.code, required this.onUse});
+  final String code;
+  final VoidCallback onUse;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(top: 20),
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+    decoration: BoxDecoration(
+      color: AppColors.primarySoft,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: AppColors.primary,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Mode Demo',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text.rich(
+          TextSpan(
+            text:
+                'Selama masa uji coba, kode OTP tidak dikirim ke nomormu. '
+                'Gunakan kode ',
+            children: [
+              TextSpan(
+                text: code,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const TextSpan(text: ' untuk melanjutkan.'),
+            ],
+          ),
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1.5,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: onUse,
+            child: const Text('Gunakan kode demo'),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _OtpInput extends StatelessWidget {
