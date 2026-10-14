@@ -96,11 +96,17 @@ class HomeQuickActions extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _actions.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
               crossAxisSpacing: 8,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.8, // room for a two-line label under the icon
+              // A fixed row height (icon + gap + two label lines), not a width ratio: on a wide
+              // screen a ratio made each row as tall as it was wide, with big empty gaps.
+              mainAxisExtent:
+                  48 +
+                  7 +
+                  2 * MediaQuery.textScalerOf(context).scale(12) * 1.2 +
+                  4,
             ),
             itemBuilder: (context, index) {
               final action = _actions[index];
