@@ -24,6 +24,16 @@ class _PawnDetailPageState extends State<PawnDetailPage> {
   /// Reloaded after Perpanjang / Tebus: the new history line and due date show on return.
   late ActivityTransaction transaction = widget.transaction;
 
+  @override
+  void didUpdateWidget(PawnDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The page opens with the list item; the full detail (extension history, redeem date)
+    // arrives a moment later from ActivityDetailRoute and must replace it.
+    if (widget.transaction != oldWidget.transaction) {
+      transaction = widget.transaction;
+    }
+  }
+
   String money(int value) =>
       'Rp ${NumberFormat.decimalPattern('id').format(value)}';
   @override
