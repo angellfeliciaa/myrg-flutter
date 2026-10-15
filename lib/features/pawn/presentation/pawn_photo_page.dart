@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/backend_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/flow_widgets.dart';
@@ -105,6 +106,11 @@ class _PawnPhotoPageState extends State<PawnPhotoPage>
   }
 
   Future<void> _startOtherPhone() => _run(() async {
+    if (BackendConfig.capturePreview) {
+      // Tester build: no photo link is made; the QR only shows a notice (see _previewOtherPhone).
+      setState(() => _mode = _Mode.otherPhone);
+      return;
+    }
     final link = await OnlinePawnApi.createPhotoLink(widget.formId);
     if (!mounted) return;
     setState(() {
@@ -314,7 +320,47 @@ class _PawnPhotoPageState extends State<PawnPhotoPage>
     ),
   );
 
+  /// Shown on the second phone when it scans the preview QR: text, so no web address appears.
+  static const _previewQrText =
+      'MyRG - Raja Gadai\n'
+      'Halaman foto barang dari HP lain akan tersedia pada tahap berikutnya. '
+      'Silakan lanjutkan dengan "Foto dari HP ini" di aplikasi MyRG.';
+
+  List<Widget> _previewOtherPhone() => [
+    const Text(
+      'Pindai QR ini dengan HP lain',
+      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+    ),
+    const SizedBox(height: 8),
+    const Text(
+      'Kamera HP lain akan membuka halaman foto Raja Gadai. Tidak perlu masuk akun.',
+      style: TextStyle(fontSize: 13, height: 1.5),
+    ),
+    const SizedBox(height: 16),
+    Center(
+      child: QrImageView(
+        data: _previewQrText,
+        size: 220,
+        backgroundColor: Colors.white,
+      ),
+    ),
+    const SizedBox(height: 16),
+    const FlowInfo(
+      'Pratinjau fitur: halaman foto di HP lain sedang disiapkan bersama tim Raja Gadai '
+      'dan akan aktif pada tahap berikutnya. Untuk demo ini, lanjutkan dengan foto dari HP ini.',
+    ),
+    const SizedBox(height: 20),
+    AppButton(
+      label: 'Lanjut Foto dari HP ini',
+      onPressed: () => setState(() {
+        _mode = _Mode.thisPhone;
+        _error = null;
+      }),
+    ),
+  ];
+
   List<Widget> _otherPhone() {
+    if (BackendConfig.capturePreview) return _previewOtherPhone();
     final link = _link!;
     final progress = _progress;
     final uploaded = progress?.uploaded ?? const <String>{};

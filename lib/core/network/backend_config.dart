@@ -14,6 +14,11 @@ abstract final class BackendConfig {
   ///   --dart-define=MYRG_DEMO_OTP=000000
   static const demoOtp = String.fromEnvironment('MYRG_DEMO_OTP');
 
+  /// Tester builds: "Pakai HP lain" shows a preview QR (plain text, no web address) instead of
+  /// the photo link of the demo server, whose domain is not Raja Gadai's. Off in a real build.
+  ///   --dart-define=MYRG_CAPTURE_PREVIEW=true
+  static const capturePreview = bool.fromEnvironment('MYRG_CAPTURE_PREVIEW');
+
   /// Android emulator reaches the laptop's `php artisan serve` at 10.0.2.2.
   static const baseUrl = String.fromEnvironment(
     'MYRG_API_URL',

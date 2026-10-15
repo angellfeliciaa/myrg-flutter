@@ -5,13 +5,16 @@
 # -ApiUrl must be https (a release build refuses plain http) and end with /api/v1.
 # -DemoOtp is the server's fixed OTP (MEMBER_OTP_TEST_CODE, default 000000): the OTP page shows it
 # as "Mode Demo". Pass -DemoOtp '' for a build against a server that sends real codes.
+# -CapturePreview (on by default): "Pakai HP lain" shows a preview QR with a notice instead of the
+# demo server's photo link. Use -CapturePreview:$false to test the real two-phone photo flow.
 # The backend behind it should run with CORE_RG_MODE=fake while Raja Gadai's device-check SDK is
 # not in the app: -SampleInspection (on by default) sends a made-up device check so the photo
 # steps of Gadai Online can be tried. Use -SampleInspection:$false against the real Core RG.
 param(
     [Parameter(Mandatory = $true)][string]$ApiUrl,
     [bool]$SampleInspection = $true,
-    [string]$DemoOtp = '000000'
+    [string]$DemoOtp = '000000',
+    [bool]$CapturePreview = $true
 )
 
 if ($ApiUrl -notmatch '^https://.+/api/v1$') {
@@ -23,6 +26,7 @@ $flutter = if (Get-Command flutter -ErrorAction SilentlyContinue) { 'flutter' } 
 $defines = @("--dart-define=RG_PREVIEW=false", "--dart-define=MYRG_API_URL=$ApiUrl")
 if ($SampleInspection) { $defines += "--dart-define=MYRG_SAMPLE_INSPECTION=true" }
 if ($DemoOtp) { $defines += "--dart-define=MYRG_DEMO_OTP=$DemoOtp" }
+if ($CapturePreview) { $defines += "--dart-define=MYRG_CAPTURE_PREVIEW=true" }
 
 & $flutter build apk --release --split-per-abi --target-platform android-arm64 @defines
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
